@@ -12,4 +12,5 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        
+  mongodb:
+    uri: mongodb://localhost:27017/crm

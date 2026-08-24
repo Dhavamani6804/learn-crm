@@ -2,56 +2,44 @@ package com.dhava.crmdemo.entity;
 
 import com.dhava.crmdemo.enums.ActivityType;
 import com.dhava.crmdemo.enums.EntityType;
-import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
 @Getter
 @Setter
 @NoArgsConstructor
-@Entity
-@Table(name = "activity_logs")
+@Document(collection = "activity_logs")
+@CompoundIndex(
+        name = "entity_type_id_idx",
+        def = "{'entityType': 1, 'entityId': 1}"
+)
 public class ActivityLog {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
 
-    @Enumerated(EnumType.STRING)
+    @Id
+    private String id;
+
     private EntityType entityType;
 
-    private Long entityId;
+    private String entityId;
 
-    @Enumerated(EnumType.STRING)
     private ActivityType activityType;
 
-    @Column(columnDefinition = "TEXT")
     private String message;
 
     private Long performedBy;
 
+    @CreatedDate
     private LocalDateTime timestamp;
 
-    @Column(columnDefinition = "TEXT")
     private String oldValue;
-    
-    @Column(columnDefinition = "TEXT")
+
     private String newValue;
 
-    public ActivityLog(EntityType entityType, Long entityId, ActivityType activityType, String message, Long performedBy, LocalDateTime timeStamp, String oldValue, String newValue) {
-        this.entityType = entityType;
-        this.entityId = entityId;
-        this.activityType = activityType;
-        this.message = message;
-        this.performedBy = performedBy;
-        this.timestamp = timeStamp;
-        this.oldValue = oldValue;
-        this.newValue = newValue;
-    }
-    @PrePersist
-    protected void onCreate() {
-        timestamp = LocalDateTime.now();
-    }
 }

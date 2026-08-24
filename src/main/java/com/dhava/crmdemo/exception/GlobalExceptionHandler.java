@@ -38,4 +38,9 @@ public class GlobalExceptionHandler {
         ApiResponse<Void> response = ApiResponse.notFound(e.getMessage(), null);
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
+    @ExceptionHandler(NoUserAssignedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoUserAssignedException(NoUserAssignedException e) {
+        ApiResponse<Void> response = ApiResponse.notFound(e.getMessage(), null);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
 }

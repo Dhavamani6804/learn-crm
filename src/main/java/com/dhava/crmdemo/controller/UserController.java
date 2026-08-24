@@ -22,28 +22,29 @@ public class UserController {
     @PostMapping
     public ResponseEntity<ApiResponse<UserResponse>> addUser(@Valid @RequestBody UserRequest request) {
         UserResponse response = userService.addUser(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(response,"User created successfully"));
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(response, "User created successfully"));
     }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<UserResponse>>> getAllUsers() {
-        return ResponseEntity.ok(ApiResponse.ok(userService.getAllUsers(),"Users fetched successfully"));
+        return ResponseEntity.ok(ApiResponse.ok(userService.getAllUsers(), "Users fetched successfully"));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable long id) {
-        return ResponseEntity.ok(ApiResponse.ok(userService.getUserById(id),"User fetched successfully"));
+    public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(userService.getUserById(id), "User fetched successfully"));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<UserResponse>> updateUser(@PathVariable long id, @Valid @RequestBody UserRequest user) {
-        return ResponseEntity.ok(ApiResponse.ok(userService.updateUser(id, user),"User updated successfully"));
+    public ResponseEntity<ApiResponse<UserResponse>> updateUser(@PathVariable Long id, @Valid @RequestBody UserRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(userService.updateUser(id, request), "User updated successfully"));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable long id) {
+    public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
+
         return ResponseEntity.ok(ApiResponse.noContent("User deleted successfully"));
     }
-
 }

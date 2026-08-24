@@ -8,7 +8,8 @@ import java.time.LocalDateTime;
 
 @Data
 public class LeadResponse {
-    private Long id;
+
+    private String id;
     private String leadName;
     private String email;
     private String phone;

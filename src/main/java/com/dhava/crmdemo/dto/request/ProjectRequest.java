@@ -1,6 +1,5 @@
 package com.dhava.crmdemo.dto.request;
 
-import com.dhava.crmdemo.enums.ProjectStatus;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -18,13 +17,16 @@ public class ProjectRequest {
     @NotBlank(message = "client name is required")
     private String clientName;
 
-    @NotNull(message = "lead id is required")
-    private Long leadId;
+    private String leadId;
 
     private String description;
 
     @NotNull(message = "final budget is required")
-    @DecimalMin(value = "0.0", inclusive = false, message = "final budget must be greater than zero")
+    @DecimalMin(
+            value = "0.0",
+            inclusive = false,
+            message = "final budget must be greater than zero"
+    )
     private BigDecimal finalBudget;
 
     private Long assignedUserId;

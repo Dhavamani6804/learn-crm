@@ -8,163 +8,170 @@ import com.dhava.crmdemo.entity.Project;
 import com.dhava.crmdemo.enums.ActivityType;
 import com.dhava.crmdemo.enums.EntityType;
 import com.dhava.crmdemo.enums.ProjectStatus;
-import com.dhava.crmdemo.exception.ProjectAlreadyExistException;
+import com.dhava.crmdemo.exception.NoUserAssignedException;
 import com.dhava.crmdemo.exception.ProjectNotFoundException;
 import com.dhava.crmdemo.mapper.ProjectMapper;
 import com.dhava.crmdemo.repository.ProjectRepository;
-import com.dhava.crmdemo.utils.ProjectSnapshot;
-import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
+
+import static com.dhava.crmdemo.constants.Constants.PROJECT_NOT_FOUND;
 
 @AllArgsConstructor
 @Service
 public class ProjectService {
+
     private final ProjectRepository projectRepository;
     private final UserService userService;
     private final ProjectMapper projectMapper;
     private final ActivityLogService activityLogService;
-    private final ProjectSnapshot projectSnapshot;
 
-    @Transactional
-    public ProjectResponse createProject(ProjectRequest projectRequest) {
-        Project project = new Project();
-        project.setProjectName(projectRequest.getProjectName());
-        project.setLeadId(projectRequest.getLeadId());
-        project.setDescription(projectRequest.getDescription());
-        project.setFinalBudget(projectRequest.getFinalBudget());
-        project.setAssignedUserId(projectRequest.getAssignedUserId());
-        project.setStartDate(projectRequest.getStartDate());
-        project.setEndDate(projectRequest.getEndDate());
+    public ProjectResponse createProject(ProjectRequest request) {
+
+        Project project = getProject(request);
 
         Project createdProject = projectRepository.save(project);
 
-        activityLogService.logActivity(
-                EntityType.PROJECT,
-                createdProject.getId(),
-                ActivityType.CREATE,
-                "Project created",
-                createdProject.getAssignedUserId(),
-                null,
-                "Project " + createdProject.getProjectName() + " created"
-        );
+        activityLogService.logActivity(EntityType.PROJECT, createdProject.getId(), ActivityType.CREATE, "Project created", createdProject.getAssignedUserId(), null, "Project " + createdProject.getProjectName() + " created");
 
         return projectMapper.toProjectResponse(createdProject);
     }
 
-    public List<ProjectResponse> getAllProjects() {
-        return projectRepository.findAll()
-                .stream()
-                .map(projectMapper::toProjectResponse)
-                .toList();
+    private static @NonNull Project getProject(ProjectRequest request) {
+        Project project = new Project();
+
+        project.setProjectName(request.getProjectName());
+        project.setClientName(request.getClientName());
+        project.setLeadId(request.getLeadId());
+        project.setDescription(request.getDescription());
+        project.setFinalBudget(request.getFinalBudget());
+        project.setAssignedUserId(request.getAssignedUserId());
+        project.setStartDate(request.getStartDate());
+        project.setEndDate(request.getEndDate());
+
+        project.setStatus(ProjectStatus.PLANNED);
+        return project;
     }
 
-    public ProjectResponse getProjectById(Long id) {
-        Project project = projectRepository.findById(id).orElseThrow(()->new ProjectNotFoundException("Project not found"));
+    public List<ProjectResponse> getAllProjects() {
+
+        return projectRepository.findAll().stream().map(projectMapper::toProjectResponse).toList();
+    }
+
+    public ProjectResponse getProjectById(String id) {
+
+        Project project = projectRepository.findById(id).orElseThrow(() -> new ProjectNotFoundException(PROJECT_NOT_FOUND));
+
         return projectMapper.toProjectResponse(project);
     }
 
-    @Transactional
-    public ProjectResponse updateProject(Long id, ProjectRequest projectRequest) {
-        Project project =  projectRepository.findById(id).orElseThrow(()->new ProjectNotFoundException("Project not found"));
+    public ProjectResponse updateProject(String id, ProjectRequest request) {
 
-        String oldValue = projectSnapshot.buildProjectSnapshot(project);
+        Project project = projectRepository.findById(id).orElseThrow(() -> new ProjectNotFoundException(PROJECT_NOT_FOUND));
 
-        project.setProjectName(projectRequest.getProjectName());
-        project.setClientName(projectRequest.getClientName());
-        project.setDescription(projectRequest.getDescription());
-        project.setFinalBudget(projectRequest.getFinalBudget());
-        project.setEndDate(projectRequest.getEndDate());
+        if (hasChanged(project.getProjectName(), request.getProjectName())) {
 
+            activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.UPDATE, "Project name updated", project.getAssignedUserId(), project.getProjectName(), request.getProjectName());
 
-        if (projectRequest.getAssignedUserId() != null) {
-            project.setAssignedUserId(projectRequest.getAssignedUserId());
+            project.setProjectName(request.getProjectName());
+        }
+
+        if (hasChanged(project.getClientName(), request.getClientName())) {
+
+            activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.UPDATE, "Project client name updated", project.getAssignedUserId(), project.getClientName(), request.getClientName());
+
+            project.setClientName(request.getClientName());
+        }
+
+        if (hasChanged(project.getDescription(), request.getDescription())) {
+
+            activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.UPDATE, "Project description updated", project.getAssignedUserId(), project.getDescription(), request.getDescription());
+
+            project.setDescription(request.getDescription());
+        }
+
+        if (hasChanged(project.getFinalBudget(), request.getFinalBudget())) {
+
+            activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.UPDATE, "Project final budget updated", project.getAssignedUserId(), String.valueOf(project.getFinalBudget()), String.valueOf(request.getFinalBudget()));
+
+            project.setFinalBudget(request.getFinalBudget());
+        }
+
+        if (hasChanged(project.getStartDate(), request.getStartDate())) {
+
+            activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.UPDATE, "Project start date updated", project.getAssignedUserId(), String.valueOf(project.getStartDate()), String.valueOf(request.getStartDate()));
+
+            project.setStartDate(request.getStartDate());
+        }
+
+        if (hasChanged(project.getEndDate(), request.getEndDate())) {
+
+            activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.UPDATE, "Project end date updated", project.getAssignedUserId(), String.valueOf(project.getEndDate()), String.valueOf(request.getEndDate()));
+
+            project.setEndDate(request.getEndDate());
         }
 
         Project updatedProject = projectRepository.save(project);
 
-        String newValue = projectSnapshot.buildProjectSnapshot(updatedProject);
-
-        activityLogService.logActivity(
-                EntityType.PROJECT,
-                updatedProject.getId(),
-                ActivityType.UPDATE,
-                "Project details updated",
-                updatedProject.getAssignedUserId(),
-                oldValue,
-                newValue
-        );
-
         return projectMapper.toProjectResponse(updatedProject);
     }
 
-    @Transactional
-    public void deleteProject(Long id) {
-        Project project = projectRepository.findById(id).orElseThrow(()->new ProjectNotFoundException("Project not found"));
+    public void deleteProject(String id) {
 
-        String oldValue = projectSnapshot.buildProjectSnapshot(project);
+        Project project = projectRepository.findById(id).orElseThrow(() -> new ProjectNotFoundException(PROJECT_NOT_FOUND));
 
-        projectRepository.delete(project);
+        activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.DELETE, "Project deleted", project.getAssignedUserId(), project.getProjectName(), null);
 
-        activityLogService.logActivity(
-                EntityType.PROJECT,
-                id,
-                ActivityType.DELETE,
-                "Project deleted",
-                project.getAssignedUserId(),
-                oldValue,
-                null
-        );
+        projectRepository.deleteById(id);
     }
 
-    @Transactional
-    public ProjectResponse assignUserToProject(Long projectId, Long userId) {
+    public ProjectResponse assignUserToProject(String projectId, Long userId) {
+
         UserResponse user = userService.getUserById(userId);
 
-        Project project = projectRepository.findById(projectId).orElseThrow(()->new ProjectNotFoundException("Project not found"));
+        Project project = projectRepository.findById(projectId).orElseThrow(() -> new ProjectNotFoundException(PROJECT_NOT_FOUND));
 
         Long oldAssignedUser = project.getAssignedUserId();
 
         project.setAssignedUserId(userId);
+
         project.setStatus(ProjectStatus.PLANNED);
 
         Project updatedProject = projectRepository.save(project);
 
-        activityLogService.logActivity(
-          EntityType.PROJECT,
-          projectId,
-          ActivityType.ASSIGN,
-          "Project assigned to user",
-          userId,
-          oldAssignedUser == null ? "No user assaigned" : oldAssignedUser.toString(),
-          user.getName()
-        );
+        activityLogService.logActivity(EntityType.PROJECT, projectId, ActivityType.ASSIGN, "Project assigned to user", userId, oldAssignedUser == null ? null : oldAssignedUser.toString(), user.getName());
+
         return projectMapper.toProjectResponse(updatedProject);
     }
 
-    @Transactional
-    public ProjectResponse updateProjectStatus(Long id, ProjectStatusRequest projectStatusRequest) {
+    public ProjectResponse updateProjectStatus(String id, ProjectStatusRequest request) {
 
-        Project project = projectRepository.findById(id).orElseThrow(()->new ProjectNotFoundException("Project not found"));
+        Project project = projectRepository.findById(id).orElseThrow(() -> new ProjectNotFoundException(PROJECT_NOT_FOUND));
+
+        if (project.getAssignedUserId() == null) {
+            throw new NoUserAssignedException("No user is assigned to this project");
+        }
 
         ProjectStatus oldStatus = project.getStatus();
 
-        project.setStatus(projectStatusRequest.getStatus());
+        if (oldStatus == request.getStatus()) {
+            return projectMapper.toProjectResponse(project);
+        }
+
+        project.setStatus(request.getStatus());
 
         Project updatedProject = projectRepository.save(project);
 
-        activityLogService.logActivity(
-                EntityType.PROJECT,
-                id,
-                ActivityType.STATUS_CHANGE,
-                "Project status updated",
-                project.getAssignedUserId(),
-                oldStatus.name(),
-                projectStatusRequest.getStatus().name()
-        );
+        activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.STATUS_CHANGE, "Project status updated", project.getAssignedUserId(), oldStatus.name(), request.getStatus().name());
+
         return projectMapper.toProjectResponse(updatedProject);
     }
 
+    private boolean hasChanged(Object oldValue, Object newValue) {
+        return !Objects.equals(oldValue, newValue);
+    }
 }

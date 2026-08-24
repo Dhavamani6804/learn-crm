@@ -40,15 +40,6 @@ public class User {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public User(String name, String email, String phone, Boolean isActive, LocalDateTime createdAt, LocalDateTime updatedAt) {
-        this.name = name;
-        this.email = email;
-        this.phone = phone;
-        this.isActive = isActive;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-    }
-
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();

@@ -6,7 +6,7 @@ import lombok.Data;
 
 @Data
 public class ProjectStatusRequest {
-    @NotNull
-    private ProjectStatus status;
 
+    @NotNull(message = "status is required")
+    private ProjectStatus status;
 }

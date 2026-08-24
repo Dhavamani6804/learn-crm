@@ -10,10 +10,10 @@ import java.time.LocalDateTime;
 @Data
 public class ProjectResponse {
 
-    private Long id;
+    private String id;
     private String projectName;
     private String clientName;
-    private Long leadId;
+    private String leadId;
     private String description;
     private BigDecimal finalBudget;
     private ProjectStatus status;

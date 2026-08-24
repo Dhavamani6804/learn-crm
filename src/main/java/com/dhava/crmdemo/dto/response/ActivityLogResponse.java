@@ -4,15 +4,14 @@ import com.dhava.crmdemo.enums.ActivityType;
 import com.dhava.crmdemo.enums.EntityType;
 import lombok.Data;
 
-
 import java.time.LocalDateTime;
 
 @Data
 public class ActivityLogResponse {
 
-    private Long id;
+    private String id;
     private EntityType entityType;
-    private Long entityId;
+    private String entityId;
     private ActivityType activityType;
     private String message;
     private Long performedBy;
