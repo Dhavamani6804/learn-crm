@@ -10,5 +10,5 @@ import java.util.List;
 
 @Repository
 public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> {
-    List<ActivityLogResponse>findByEntityTypeAndEntityId(EntityType entityType, Long entityId);
+    List<ActivityLog>findByEntityTypeAndEntityId(EntityType entityType, Long entityId);
 }

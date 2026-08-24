@@ -37,7 +37,10 @@ public class ActivityLogService {
     }
 
     public List<ActivityLogResponse> getLogsByEntity(EntityType entityType, Long entityId) {
-        return activityLogRepository.findByEntityTypeAndEntityId(entityType,entityId);
-    }
+        return activityLogRepository
+                .findByEntityTypeAndEntityId(entityType, entityId)
+                .stream()
+                .map(activityLogMapper::toActivityLogResponse)
+                .toList();    }
 
 }

@@ -13,12 +13,10 @@ public class LeadToProjectRequest {
     @NotBlank(message = "project name is required")
     private String projectName;
 
-    @NotBlank(message = "client name is required")
     private String clientName;
 
     private String description;
 
-    @NotNull(message = "final budget is required")
     @DecimalMin(value = "0.0", inclusive = false,
             message = "final budget must be greater than zero")
     private BigDecimal finalBudget;

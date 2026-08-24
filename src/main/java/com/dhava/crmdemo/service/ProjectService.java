@@ -76,7 +76,6 @@ public class ProjectService {
         project.setClientName(projectRequest.getClientName());
         project.setDescription(projectRequest.getDescription());
         project.setFinalBudget(projectRequest.getFinalBudget());
-        project.setStartDate(projectRequest.getStartDate());
         project.setEndDate(projectRequest.getEndDate());
 
 
@@ -103,7 +102,7 @@ public class ProjectService {
 
     @Transactional
     public void deleteProject(Long id) {
-        Project project = projectRepository.findById(id).orElseThrow(()->new ProjectAlreadyExistException("Project not found"));
+        Project project = projectRepository.findById(id).orElseThrow(()->new ProjectNotFoundException("Project not found"));
 
         String oldValue = projectSnapshot.buildProjectSnapshot(project);
 
