@@ -2,7 +2,6 @@ package com.dhava.crmdemo.controller;
 
 import com.dhava.crmdemo.api.ApiResponse;
 import com.dhava.crmdemo.dto.response.ActivityLogResponse;
-import com.dhava.crmdemo.entity.ActivityLog;
 import com.dhava.crmdemo.enums.EntityType;
 import com.dhava.crmdemo.service.ActivityLogService;
 import lombok.AllArgsConstructor;

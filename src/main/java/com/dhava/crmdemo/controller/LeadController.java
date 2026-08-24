@@ -3,7 +3,9 @@ package com.dhava.crmdemo.controller;
 import com.dhava.crmdemo.api.ApiResponse;
 import com.dhava.crmdemo.dto.request.LeadRequest;
 import com.dhava.crmdemo.dto.request.LeadStatusRequest;
+import com.dhava.crmdemo.dto.request.LeadToProjectRequest;
 import com.dhava.crmdemo.dto.response.LeadResponse;
+import com.dhava.crmdemo.dto.response.ProjectResponse;
 import com.dhava.crmdemo.service.LeadService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
@@ -54,6 +56,11 @@ public class LeadController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<LeadResponse>> updateLeadStatus(@PathVariable long id, @RequestBody LeadStatusRequest req) {
         return ResponseEntity.ok(ApiResponse.ok(leadService.updateLeadStatus(id,req),"Lead status updated successfully"));
+    }
+
+    @PostMapping("/{id}/convert-to-project")
+    public ResponseEntity<ApiResponse<ProjectResponse>> leadToProject(@PathVariable long id,@Valid @RequestBody LeadToProjectRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(leadService.leadToProject(id,request),"Lead converted to project successfully"));
     }
 
 }

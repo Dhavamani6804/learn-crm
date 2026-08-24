@@ -28,4 +28,14 @@ public class GlobalExceptionHandler {
         ApiResponse<Void> response = ApiResponse.conflict(e.getMessage(), null);
         return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
+    @ExceptionHandler(ProjectAlreadyExistException.class)
+    public ResponseEntity<ApiResponse<Void>> handleProjectAlreadyExistException(ProjectAlreadyExistException e) {
+        ApiResponse<Void> response = ApiResponse.conflict(e.getMessage(), null);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+    @ExceptionHandler(ProjectNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleProjectNotFoundException(ProjectNotFoundException e) {
+        ApiResponse<Void> response = ApiResponse.notFound(e.getMessage(), null);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
 }
