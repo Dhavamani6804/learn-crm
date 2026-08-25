@@ -24,7 +24,7 @@ public class LeadToProjectRequest {
     )
     private BigDecimal finalBudget;
 
-    private LocalDate startDate = LocalDate.now();
+    private LocalDate startDate;
 
     private LocalDate endDate;
 }

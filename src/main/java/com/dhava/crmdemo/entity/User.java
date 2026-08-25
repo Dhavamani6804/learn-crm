@@ -7,7 +7,9 @@ import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Getter
 @Setter
@@ -29,10 +31,7 @@ public class User {
     private String email;
 
     @NotBlank(message = "phone no. is required")
-    @Pattern(
-            regexp = "^\\+?[1-9]\\d{7,14}$",
-            message = "Phone number must be a valid international format"
-    )
+    @Pattern(regexp = "^\\+?[1-9]\\d{7,14}$", message = "Phone number must be a valid international format")
     @Column(unique = true)
     private String phone;
 
@@ -42,13 +41,13 @@ public class User {
 
     @PrePersist
     protected void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Kolkata"));
         createdAt = now;
         updatedAt = now;
     }
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now(ZoneId.of("Asia/Kolkata"));
     }
 }

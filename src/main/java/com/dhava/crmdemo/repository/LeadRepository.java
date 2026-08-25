@@ -10,6 +10,15 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Repository for accessing Lead data.
+ *
+ * <p>Provides database operations for Lead.
+ *
+ * @author Dhava
+ * @since 1.0
+ */
+
 @Repository
 @RequiredArgsConstructor
 public class LeadRepository {

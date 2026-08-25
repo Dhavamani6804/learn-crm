@@ -40,7 +40,7 @@ public class GlobalExceptionHandler {
     }
     @ExceptionHandler(NoUserAssignedException.class)
     public ResponseEntity<ApiResponse<Void>> handleNoUserAssignedException(NoUserAssignedException e) {
-        ApiResponse<Void> response = ApiResponse.notFound(e.getMessage(), null);
+        ApiResponse<Void> response = ApiResponse.badRequest(e.getMessage(), null);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 }
