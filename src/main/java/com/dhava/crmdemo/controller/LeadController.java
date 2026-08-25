@@ -1,9 +1,11 @@
 package com.dhava.crmdemo.controller;
 
 import com.dhava.crmdemo.api.ApiResponse;
+import com.dhava.crmdemo.dto.request.LeadFilterRequest;
 import com.dhava.crmdemo.dto.request.LeadRequest;
 import com.dhava.crmdemo.dto.request.LeadStatusRequest;
 import com.dhava.crmdemo.dto.request.LeadToProjectRequest;
+import com.dhava.crmdemo.dto.response.LeadPageResponse;
 import com.dhava.crmdemo.dto.response.LeadResponse;
 import com.dhava.crmdemo.dto.response.ProjectResponse;
 import com.dhava.crmdemo.service.LeadService;
@@ -13,7 +15,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 
 /**
  * REST controller responsible for managing leads.
@@ -52,9 +53,8 @@ public class LeadController {
      * @return a response containing a list of all leads
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<LeadResponse>>> getAllLeads() {
-
-        return ResponseEntity.ok(ApiResponse.ok(leadService.getAllLeads(), "Leads fetched successfully"));
+    public ResponseEntity<ApiResponse<LeadPageResponse>> getAllLeads(@Valid @ModelAttribute LeadFilterRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(leadService.getAllLeads(request), "Leads fetched successfully"));
     }
 
     /**

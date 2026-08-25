@@ -1,8 +1,10 @@
 package com.dhava.crmdemo.service;
 
+import com.dhava.crmdemo.dto.request.LeadFilterRequest;
 import com.dhava.crmdemo.dto.request.LeadRequest;
 import com.dhava.crmdemo.dto.request.LeadStatusRequest;
 import com.dhava.crmdemo.dto.request.LeadToProjectRequest;
+import com.dhava.crmdemo.dto.response.LeadPageResponse;
 import com.dhava.crmdemo.dto.response.LeadResponse;
 import com.dhava.crmdemo.dto.response.ProjectResponse;
 import com.dhava.crmdemo.dto.response.UserResponse;
@@ -18,6 +20,7 @@ import com.dhava.crmdemo.exception.NoUserAssignedException;
 import com.dhava.crmdemo.exception.ProjectAlreadyExistException;
 import com.dhava.crmdemo.mapper.LeadMapper;
 import com.dhava.crmdemo.mapper.ProjectMapper;
+import com.dhava.crmdemo.repository.LeadPageResult;
 import com.dhava.crmdemo.repository.LeadRepository;
 import com.dhava.crmdemo.repository.ProjectRepository;
 import lombok.AllArgsConstructor;
@@ -66,9 +69,29 @@ public class LeadService {
         return leadMapper.toLeadResponse(createdLead);
     }
 
-    public List<LeadResponse> getAllLeads() {
+    public LeadPageResponse getAllLeads(LeadFilterRequest request) {
+        if (request.getMinBudget() != null
+                && request.getMaxBudget() != null
+                && request.getMinBudget().compareTo(request.getMaxBudget()) > 0) {
 
-        return leadRepository.findAll().stream().map(leadMapper::toLeadResponse).toList();
+            throw new IllegalArgumentException(
+                    "Minimum budget cannot be greater than maximum budget"
+            );
+        }
+
+        LeadPageResult result = leadRepository.findAll(request.getPageNo(), request.getPageSize(), request.getSortBy(), request.getSortDirection(), request.getSource(), request.getStatus(), request.getMinBudget(), request.getMaxBudget());
+
+        List<LeadResponse> leads = result.getLeads().stream().map(leadMapper::toLeadResponse).toList();
+
+        long totalElements = result.getTotalElements();
+
+        int pageNo = request.getPageNo();
+        int pageSize = request.getPageSize();
+
+        boolean firstPage = pageNo == 0;
+        boolean lastPage = (long) (pageNo + 1) * pageSize >= totalElements;
+
+        return LeadPageResponse.builder().content(leads).pageNo(pageNo).pageSize(pageSize).totalElements(totalElements).firstPage(firstPage).lastPage(lastPage).build();
     }
 
     public LeadResponse getLeadById(String id) {
@@ -157,6 +180,7 @@ public class LeadService {
         Long oldAssignedUser = lead.getAssignedUserId();
 
         lead.setAssignedUserId(userId);
+        lead.setAssignedUserName(user.getName());
         lead.setStatus(LeadStatus.ASSIGNED);
 
         Lead updatedLead = leadRepository.save(lead);

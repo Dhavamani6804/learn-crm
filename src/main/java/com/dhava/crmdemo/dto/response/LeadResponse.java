@@ -16,6 +16,7 @@ public class LeadResponse {
     private String source;
     private LeadStatus status;
     private Long assignedUserId;
+    private String assignedUserName;
     private String description;
     private BigDecimal expectedBudget;
     private LocalDateTime createdAt;

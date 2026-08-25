@@ -44,6 +44,8 @@ public class Lead {
 
     private Long assignedUserId;
 
+    private String assignedUserName;
+
     private String description;
 
     private BigDecimal expectedBudget;

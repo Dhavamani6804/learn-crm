@@ -18,6 +18,7 @@ public class LeadMapper {
         leadResponse.setSource(lead.getSource());
         leadResponse.setStatus(lead.getStatus());
         leadResponse.setAssignedUserId(lead.getAssignedUserId());
+        leadResponse.setAssignedUserName(lead.getAssignedUserName());
         leadResponse.setDescription(lead.getDescription());
         leadResponse.setExpectedBudget(lead.getExpectedBudget());
         leadResponse.setCreatedAt(lead.getCreatedAt());
