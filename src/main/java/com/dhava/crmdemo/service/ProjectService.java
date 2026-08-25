@@ -13,7 +13,6 @@ import com.dhava.crmdemo.exception.ProjectNotFoundException;
 import com.dhava.crmdemo.mapper.ProjectMapper;
 import com.dhava.crmdemo.repository.ProjectRepository;
 import lombok.AllArgsConstructor;
-import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -41,20 +40,8 @@ public class ProjectService {
         return projectMapper.toProjectResponse(createdProject);
     }
 
-    private static @NonNull Project getProject(ProjectRequest request) {
-        Project project = new Project();
-
-        project.setProjectName(request.getProjectName());
-        project.setClientName(request.getClientName());
-        project.setLeadId(request.getLeadId());
-        project.setDescription(request.getDescription());
-        project.setFinalBudget(request.getFinalBudget());
-        project.setAssignedUserId(request.getAssignedUserId());
-        project.setStartDate(request.getStartDate());
-        project.setEndDate(request.getEndDate());
-
-        project.setStatus(ProjectStatus.PLANNED);
-        return project;
+    private static Project getProject(ProjectRequest request) {
+        return Project.builder().projectName(request.getProjectName()).clientName(request.getClientName()).leadId(request.getLeadId()).description(request.getDescription()).finalBudget(request.getFinalBudget()).assignedUserId(request.getAssignedUserId()).startDate(request.getStartDate()).endDate(request.getEndDate()).status(ProjectStatus.PLANNED).build();
     }
 
     public List<ProjectResponse> getAllProjects() {
@@ -62,16 +49,20 @@ public class ProjectService {
         return projectRepository.findAll().stream().map(projectMapper::toProjectResponse).toList();
     }
 
+    public Project returnProjectIfPresent(String projectId) {
+        return projectRepository.findById(projectId).orElseThrow(() -> new ProjectNotFoundException(PROJECT_NOT_FOUND));
+    }
+
     public ProjectResponse getProjectById(String id) {
 
-        Project project = projectRepository.findById(id).orElseThrow(() -> new ProjectNotFoundException(PROJECT_NOT_FOUND));
+        Project project = returnProjectIfPresent(id);
 
         return projectMapper.toProjectResponse(project);
     }
 
     public ProjectResponse updateProject(String id, ProjectRequest request) {
 
-        Project project = projectRepository.findById(id).orElseThrow(() -> new ProjectNotFoundException(PROJECT_NOT_FOUND));
+        Project project = returnProjectIfPresent(id);
 
         if (hasChanged(project.getProjectName(), request.getProjectName())) {
 
@@ -122,7 +113,7 @@ public class ProjectService {
 
     public void deleteProject(String id) {
 
-        Project project = projectRepository.findById(id).orElseThrow(() -> new ProjectNotFoundException(PROJECT_NOT_FOUND));
+        Project project = returnProjectIfPresent(id);
 
         activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.DELETE, "Project deleted", project.getAssignedUserId(), project.getProjectName(), null);
 
@@ -133,13 +124,15 @@ public class ProjectService {
 
         UserResponse user = userService.getUserById(userId);
 
-        Project project = projectRepository.findById(projectId).orElseThrow(() -> new ProjectNotFoundException(PROJECT_NOT_FOUND));
+        Project project = returnProjectIfPresent(projectId);
 
         Long oldAssignedUser = project.getAssignedUserId();
 
-        project.setAssignedUserId(userId);
+        if (Objects.equals(oldAssignedUser, userId)) {
+            return projectMapper.toProjectResponse(project);
+        }
 
-        project.setStatus(ProjectStatus.PLANNED);
+        project.setAssignedUserId(userId);
 
         Project updatedProject = projectRepository.save(project);
 
@@ -150,7 +143,7 @@ public class ProjectService {
 
     public ProjectResponse updateProjectStatus(String id, ProjectStatusRequest request) {
 
-        Project project = projectRepository.findById(id).orElseThrow(() -> new ProjectNotFoundException(PROJECT_NOT_FOUND));
+        Project project = returnProjectIfPresent(id);
 
         if (project.getAssignedUserId() == null) {
             throw new NoUserAssignedException("No user is assigned to this project");

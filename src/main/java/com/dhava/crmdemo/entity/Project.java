@@ -1,9 +1,7 @@
 package com.dhava.crmdemo.entity;
 
 import com.dhava.crmdemo.enums.ProjectStatus;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -14,8 +12,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+@Builder
 @Getter
 @Setter
+@AllArgsConstructor
 @NoArgsConstructor
 @Document(collection = "projects")
 public class Project {
@@ -47,4 +47,5 @@ public class Project {
 
     @LastModifiedDate
     private LocalDateTime updatedAt;
+
 }
