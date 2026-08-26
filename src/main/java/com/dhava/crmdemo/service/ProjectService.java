@@ -1,7 +1,9 @@
 package com.dhava.crmdemo.service;
 
+import com.dhava.crmdemo.dto.request.ProjectFilterRequest;
 import com.dhava.crmdemo.dto.request.ProjectRequest;
 import com.dhava.crmdemo.dto.request.ProjectStatusRequest;
+import com.dhava.crmdemo.dto.response.ProjectPageResponse;
 import com.dhava.crmdemo.dto.response.ProjectResponse;
 import com.dhava.crmdemo.dto.response.UserResponse;
 import com.dhava.crmdemo.entity.Project;
@@ -11,6 +13,7 @@ import com.dhava.crmdemo.enums.ProjectStatus;
 import com.dhava.crmdemo.exception.NoUserAssignedException;
 import com.dhava.crmdemo.exception.ProjectNotFoundException;
 import com.dhava.crmdemo.mapper.ProjectMapper;
+import com.dhava.crmdemo.repository.ProjectPageResult;
 import com.dhava.crmdemo.repository.ProjectRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -44,9 +47,13 @@ public class ProjectService {
         return Project.builder().projectName(request.getProjectName()).clientName(request.getClientName()).leadId(request.getLeadId()).description(request.getDescription()).finalBudget(request.getFinalBudget()).assignedUserId(request.getAssignedUserId()).startDate(request.getStartDate()).endDate(request.getEndDate()).status(ProjectStatus.PLANNED).build();
     }
 
-    public List<ProjectResponse> getAllProjects() {
+    public ProjectPageResponse getAllProjects(ProjectFilterRequest request) {
 
-        return projectRepository.findAll().stream().map(projectMapper::toProjectResponse).toList();
+        ProjectPageResult result = projectRepository.findAll(request);
+
+        List<ProjectResponse> projects = result.getProjects().stream().map(projectMapper::toProjectResponse).toList();
+
+        return ProjectPageResponse.builder().content(projects).pageSize(request.getSize()).nextCursor(result.getNextCursor()).hasNext(result.isHasNext()).build();
     }
 
     public Project returnProjectIfPresent(String projectId) {

@@ -43,8 +43,6 @@ public class LeadRepository {
 
 
         Criteria criteria = new Criteria();
-
-        // Filters
         List<Criteria> filters = new ArrayList<>();
 
         if (source != null && !source.isBlank()) {

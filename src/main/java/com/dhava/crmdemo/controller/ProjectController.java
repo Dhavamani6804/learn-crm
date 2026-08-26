@@ -1,8 +1,10 @@
 package com.dhava.crmdemo.controller;
 
 import com.dhava.crmdemo.api.ApiResponse;
+import com.dhava.crmdemo.dto.request.ProjectFilterRequest;
 import com.dhava.crmdemo.dto.request.ProjectRequest;
 import com.dhava.crmdemo.dto.request.ProjectStatusRequest;
+import com.dhava.crmdemo.dto.response.ProjectPageResponse;
 import com.dhava.crmdemo.dto.response.ProjectResponse;
 import com.dhava.crmdemo.service.ProjectService;
 import jakarta.validation.Valid;
@@ -11,7 +13,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 
 @AllArgsConstructor
 @RestController
@@ -28,8 +29,8 @@ public class ProjectController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<ProjectResponse>>> getAllProjects() {
-        return ResponseEntity.ok(ApiResponse.ok(projectService.getAllProjects(), "Projects fetched successfully"));
+    public ResponseEntity<ApiResponse<ProjectPageResponse>> getAllProjects( @ModelAttribute ProjectFilterRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(projectService.getAllProjects(request), "Projects fetched successfully"));
     }
 
     @GetMapping("/{id}")
