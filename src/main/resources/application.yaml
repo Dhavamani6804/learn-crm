@@ -1,10 +1,12 @@
 spring:
   application:
     name: crmdemo
+
   datasource:
     url: jdbc:mysql://localhost:3306/crm
     username: root
     password: root
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -12,5 +14,17 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
   mongodb:
     uri: mongodb://localhost:27017/crm
+
+security:
+  super-admin:
+    name: SuperAdmin
+    email: superadmin@gmail.com
+    phone: +919876543210
+    password: SuperAdmin@123
+
+  jwt:
+    secret: ${JWT_SECRET:this-is-my-secret-key-for-my-crm-application-0987654321}
+    expiration-ms: 300000

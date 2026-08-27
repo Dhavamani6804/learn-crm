@@ -1,5 +1,6 @@
 package com.dhava.crmdemo.entity;
 
+import com.dhava.crmdemo.enums.Role;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -35,7 +36,16 @@ public class User {
     @Column(unique = true)
     private String phone;
 
+    @Column(nullable = false)
+    private String passwordHash;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role;
+
+    @Column(nullable = false)
     private Boolean isActive;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

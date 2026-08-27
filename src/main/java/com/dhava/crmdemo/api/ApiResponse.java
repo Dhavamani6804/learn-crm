@@ -173,6 +173,7 @@ public class ApiResponse<T> {
      * @deprecated this is method is being deprecated since version 7.0.
      * This API will be removed in version 7.0.
      */
+    @Deprecated
     public static <T> ApiResponse<T> unprocessableEntity(
             String message,
             Object errors
