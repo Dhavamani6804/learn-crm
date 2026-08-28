@@ -39,9 +39,7 @@ public class UserService {
     public UserResponse addUser(CreateUserRequest request) {
 
         User actor = securityUtils.getCurrentUser();
-
         Role requestedRole = validateCreationRole(request.getRole(), actor);
-
         validateUniqueFields(request.getEmail(), request.getPhone());
 
         User user = new User();
@@ -55,7 +53,7 @@ public class UserService {
 
         User savedUser = userRepository.save(user);
 
-        activityLogService.logActivity(EntityType.USER, String.valueOf(savedUser.getId()), ActivityType.CREATE, "User created", actor.getName(), null, "User " + savedUser.getName() + " created with role " + savedUser.getRole());
+        activityLogService.logActivity(EntityType.USER, String.valueOf(savedUser.getId()), ActivityType.CREATE, "User created", null, "User " + savedUser.getName() + " created with role " + savedUser.getRole());
 
         return userMapper.toUserResponse(savedUser);
     }
@@ -125,13 +123,13 @@ public class UserService {
         }
 
         if (actor.getRole() == Role.SUPER_ADMIN) {
-            updateManagedUser(target, request, actor);
+            updateManagedUser(target, request);
             User savedUser = userRepository.save(target);
             return userMapper.toUserResponse(savedUser);
         }
 
         if (actor.getRole() == Role.ADMIN) {
-            updateManagedUser(target, request, actor);
+            updateManagedUser(target, request);
             User savedUser = userRepository.save(target);
             return userMapper.toUserResponse(savedUser);
         }
@@ -142,7 +140,7 @@ public class UserService {
     private void updateSuperAdminProfile(User user, UpdateUserRequest request) {
 
         if (!Objects.equals(user.getName(), request.getName())) {
-            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "Super admin name updated", user.getName(), user.getName(), request.getName());
+            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "Super admin name updated", user.getName(), request.getName());
             user.setName(request.getName());
         }
 
@@ -152,19 +150,19 @@ public class UserService {
                 throw new UserAlreadyExistException("Phone already exists");
             }
 
-            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "Super admin phone updated", user.getName(), user.getPhone(), request.getPhone());
+            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "Super admin phone updated", user.getPhone(), request.getPhone());
             user.setPhone(request.getPhone());
         }
 
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
 
             user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "Super admin password updated", user.getName(), null, PASSWORD_CHANGED);
+            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "Super admin password updated", null, PASSWORD_CHANGED);
         }
 
     }
 
-    private void updateManagedUser(User user, UpdateUserRequest request, User actor) {
+    private void updateManagedUser(User user, UpdateUserRequest request) {
 
         if (!Objects.equals(user.getEmail(), request.getEmail())) {
 
@@ -172,7 +170,7 @@ public class UserService {
                 throw new UserAlreadyExistException("Email already exists");
             }
 
-            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "User email updated", actor.getName(), user.getEmail(), request.getEmail());
+            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "User email updated", user.getEmail(), request.getEmail());
             user.setEmail(request.getEmail());
         }
 
@@ -182,45 +180,24 @@ public class UserService {
                 throw new UserAlreadyExistException("Phone already exists");
             }
 
-            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "User phone updated", actor.getName(), user.getPhone(), request.getPhone());
+            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "User phone updated", user.getPhone(), request.getPhone());
             user.setPhone(request.getPhone());
         }
 
         if (!Objects.equals(user.getName(), request.getName())) {
-            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "User name updated", actor.getName(), user.getName(), request.getName());
+            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "User name updated", user.getName(), request.getName());
             user.setName(request.getName());
         }
 
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
             user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "User password updated", actor.getName(), null, PASSWORD_CHANGED);
+            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "User password updated", null, PASSWORD_CHANGED);
         }
 
         if (request.getIsActive() != null && !Objects.equals(user.getIsActive(), request.getIsActive())) {
-            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "User active status updated", actor.getName(), String.valueOf(user.getIsActive()), String.valueOf(request.getIsActive()));
+            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "User active status updated", String.valueOf(user.getIsActive()), String.valueOf(request.getIsActive()));
             user.setIsActive(request.getIsActive());
         }
-    }
-
-    @Transactional
-    public void deleteUser(Long id) {
-
-        User actor = securityUtils.getCurrentUser();
-        User target = userRepository.findById(id).orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_WITH_ID + id));
-
-        if (target.getRole() == Role.SUPER_ADMIN) {
-            throw new AuthorizationException("SUPER_ADMIN account cannot be deleted");
-        }
-
-        if (actor.getRole() != Role.SUPER_ADMIN) {
-            throw new AuthorizationException("Only SUPER_ADMIN can delete users");
-        }
-
-        String oldValue = "name=" + target.getName() + ", email=" + target.getEmail() + ", phone=" + target.getPhone() + ", role=" + target.getRole();
-
-        userRepository.delete(target);
-
-        activityLogService.logActivity(EntityType.USER, String.valueOf(id), ActivityType.DELETE, "User deleted", actor.getName(), oldValue, null);
     }
 
     @Transactional
@@ -233,7 +210,7 @@ public class UserService {
         }
 
         if (!Objects.equals(actor.getName(), request.getName())) {
-            activityLogService.logActivity(EntityType.USER, String.valueOf(actor.getId()), ActivityType.UPDATE, "Super admin name updated", actor.getName(), actor.getName(), request.getName());
+            activityLogService.logActivity(EntityType.USER, String.valueOf(actor.getId()), ActivityType.UPDATE, "Super admin name updated", actor.getName(), request.getName());
             actor.setName(request.getName());
         }
 
@@ -242,17 +219,39 @@ public class UserService {
             if (userRepository.existsByPhoneAndIdNot(request.getPhone(), actor.getId())) {
                 throw new UserAlreadyExistException("Phone already exists");
             }
-            activityLogService.logActivity(EntityType.USER, String.valueOf(actor.getId()), ActivityType.UPDATE, "Super admin phone updated", actor.getName(), actor.getPhone(), request.getPhone());
+            activityLogService.logActivity(EntityType.USER, String.valueOf(actor.getId()), ActivityType.UPDATE, "Super admin phone updated", actor.getPhone(), request.getPhone());
             actor.setPhone(request.getPhone());
         }
 
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
             actor.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-            activityLogService.logActivity(EntityType.USER, String.valueOf(actor.getId()), ActivityType.UPDATE, "Super admin password updated", actor.getName(), null, PASSWORD_CHANGED);
+            activityLogService.logActivity(EntityType.USER, String.valueOf(actor.getId()), ActivityType.UPDATE, "Super admin password updated", null, PASSWORD_CHANGED);
         }
         User savedUser = userRepository.save(actor);
         return userMapper.toUserResponse(savedUser);
     }
 
+    @Transactional
+    public void deleteUser(Long id) {
+
+        User actor = securityUtils.getCurrentUser();
+        User target = userRepository.findById(id).orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_WITH_ID + id));
+
+        if (target.getRole() == Role.SUPER_ADMIN) {
+            throw new AuthorizationException("SUPER_ADMIN account cannot be deleted");
+        }
+
+        if (actor.getRole() == Role.USER) {
+            throw new AuthorizationException("USER does not have permission to delete users");
+        }
+
+        if (actor.getRole() == Role.ADMIN && target.getRole() != Role.USER) {
+            throw new AuthorizationException("ADMIN can delete only USER accounts");
+        }
+
+        String oldValue = "name=" + target.getName() + ", email=" + target.getEmail() + ", phone=" + target.getPhone() + ", role=" + target.getRole();
+        userRepository.delete(target);
+        activityLogService.logActivity(EntityType.USER, String.valueOf(id), ActivityType.DELETE, "User deleted", oldValue, null);
+    }
 }
 

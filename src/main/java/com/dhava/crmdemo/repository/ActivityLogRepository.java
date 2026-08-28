@@ -28,6 +28,13 @@ public class ActivityLogRepository {
         return mongoTemplate.find(query, ActivityLog.class);
     }
 
+    public List<ActivityLog> findByEntityType(EntityType entityType) {
+
+        Query query = new Query(Criteria.where("entityType").is(entityType));
+        query.with(Sort.by(Sort.Direction.ASC, "timestamp"));
+        return mongoTemplate.find(query, ActivityLog.class);
+    }
+
     public List<ActivityLog> findAll() {
         return mongoTemplate.findAll(ActivityLog.class);
     }
