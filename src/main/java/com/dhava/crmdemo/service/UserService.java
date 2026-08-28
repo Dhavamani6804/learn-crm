@@ -1,20 +1,29 @@
 package com.dhava.crmdemo.service;
 
-import com.dhava.crmdemo.dto.request.UserRequest;
+import com.dhava.crmdemo.dto.request.CreateUserRequest;
+import com.dhava.crmdemo.dto.request.UpdateOwnProfileRequest;
+import com.dhava.crmdemo.dto.request.UpdateUserRequest;
 import com.dhava.crmdemo.dto.response.UserResponse;
 import com.dhava.crmdemo.entity.User;
 import com.dhava.crmdemo.enums.ActivityType;
 import com.dhava.crmdemo.enums.EntityType;
+import com.dhava.crmdemo.enums.Role;
+import com.dhava.crmdemo.exception.AuthorizationException;
 import com.dhava.crmdemo.exception.UserAlreadyExistException;
 import com.dhava.crmdemo.exception.UserNotFoundException;
 import com.dhava.crmdemo.mapper.UserMapper;
 import com.dhava.crmdemo.repository.UserRepository;
+import com.dhava.crmdemo.security.SecurityUtils;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Objects;
+
+import static com.dhava.crmdemo.constants.Constants.PASSWORD_CHANGED;
+import static com.dhava.crmdemo.constants.Constants.USER_NOT_FOUND_WITH_ID;
 
 @AllArgsConstructor
 @Service
@@ -23,93 +32,227 @@ public class UserService {
     private final UserRepository userRepository;
     private final ActivityLogService activityLogService;
     private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
+    private final SecurityUtils securityUtils;
 
     @Transactional
-    public UserResponse addUser(UserRequest request) {
+    public UserResponse addUser(CreateUserRequest request) {
 
-        if (userRepository.existsByEmail(request.getEmail()) || userRepository.existsByPhone(request.getPhone())) {
+        User actor = securityUtils.getCurrentUser();
 
-            throw new UserAlreadyExistException("Email or Phone already exists");
-        }
+        Role requestedRole = validateCreationRole(request.getRole(), actor);
 
-        User newUser = new User();
+        validateUniqueFields(request.getEmail(), request.getPhone());
 
-        newUser.setName(request.getName());
-        newUser.setEmail(request.getEmail());
-        newUser.setPhone(request.getPhone());
-        newUser.setIsActive(true);
+        User user = new User();
 
-        User savedUser = userRepository.save(newUser);
+        user.setName(request.getName());
+        user.setEmail(request.getEmail());
+        user.setPhone(request.getPhone());
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setRole(requestedRole);
+        user.setIsActive(true);
 
-        activityLogService.logActivity(EntityType.USER, String.valueOf(savedUser.getId()), ActivityType.CREATE, "User created", null, null, "User " + savedUser.getName() + " has been created");
+        User savedUser = userRepository.save(user);
+
+        activityLogService.logActivity(EntityType.USER, String.valueOf(savedUser.getId()), ActivityType.CREATE, "User created", actor.getName(), null, "User " + savedUser.getName() + " created with role " + savedUser.getRole());
 
         return userMapper.toUserResponse(savedUser);
     }
 
-    public List<UserResponse> getAllUsers() {
+    private Role validateCreationRole(Role requestedRole, User actor) {
 
+        if (actor.getRole() == Role.SUPER_ADMIN) {
+
+            if (requestedRole == Role.SUPER_ADMIN) {
+                throw new AuthorizationException("SUPER_ADMIN cannot be created through this API");
+            }
+            return requestedRole;
+        }
+
+        if (actor.getRole() == Role.ADMIN) {
+
+            if (requestedRole != Role.USER) {
+                throw new AuthorizationException("ADMIN can create only USER accounts");
+            }
+            return Role.USER;
+        }
+        throw new AuthorizationException("USER does not have permission to create users");
+    }
+
+    private void validateUniqueFields(String email, String phone) {
+
+        if (userRepository.existsByEmail(email)) {
+            throw new UserAlreadyExistException("Email already exists");
+        }
+
+        if (userRepository.existsByPhone(phone)) {
+            throw new UserAlreadyExistException("Phone already exists");
+        }
+    }
+
+    public List<UserResponse> getAllUsers() {
         return userRepository.findAll().stream().map(userMapper::toUserResponse).toList();
     }
 
-
     public UserResponse getUserById(Long id) {
-
-        User user = userRepository.findById(id).orElseThrow(() -> new UserNotFoundException("User not found"));
-
+        User user = userRepository.findById(id).orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_WITH_ID + id));
         return userMapper.toUserResponse(user);
     }
 
     @Transactional
-    public UserResponse updateUser(Long id, UserRequest request) {
+    public UserResponse updateUser(Long id, UpdateUserRequest request) {
 
-        User user = userRepository.findById(id).orElseThrow(() -> new UserNotFoundException("User not found"));
+        User actor = securityUtils.getCurrentUser();
+        User target = userRepository.findById(id).orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_WITH_ID + id));
 
-        if (!Objects.equals(user.getEmail(), request.getEmail()) && userRepository.existsByEmailAndIdNot(request.getEmail(), id)) {
-
-            throw new UserAlreadyExistException("Email already exists");
+        if (actor.getRole() == Role.USER) {
+            throw new AuthorizationException("USER does not have permission to update users");
         }
 
-        if (!Objects.equals(user.getPhone(), request.getPhone()) && userRepository.existsByPhoneAndIdNot(request.getPhone(), id)) {
-
-            throw new UserAlreadyExistException("Phone already exists");
+        if (actor.getRole() == Role.ADMIN && actor.getId().equals(target.getId())) {
+            throw new AuthorizationException("ADMIN cannot update his own account");
         }
+
+        if (actor.getRole() == Role.ADMIN && target.getRole() != Role.USER) {
+            throw new AuthorizationException("ADMIN can update only USER accounts");
+        }
+
+        if (actor.getRole() == Role.SUPER_ADMIN && actor.getId().equals(target.getId())) {
+            updateSuperAdminProfile(target, request);
+            User savedUser = userRepository.save(target);
+            return userMapper.toUserResponse(savedUser);
+        }
+
+        if (actor.getRole() == Role.SUPER_ADMIN) {
+            updateManagedUser(target, request, actor);
+            User savedUser = userRepository.save(target);
+            return userMapper.toUserResponse(savedUser);
+        }
+
+        if (actor.getRole() == Role.ADMIN) {
+            updateManagedUser(target, request, actor);
+            User savedUser = userRepository.save(target);
+            return userMapper.toUserResponse(savedUser);
+        }
+
+        throw new AuthorizationException("You do not have permission to update this user");
+    }
+
+    private void updateSuperAdminProfile(User user, UpdateUserRequest request) {
 
         if (!Objects.equals(user.getName(), request.getName())) {
-
-            activityLogService.logActivity(EntityType.USER, String.valueOf(id), ActivityType.UPDATE, "User name updated", null, user.getName(), request.getName());
-
+            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "Super admin name updated", user.getName(), user.getName(), request.getName());
             user.setName(request.getName());
         }
 
+        if (!Objects.equals(user.getPhone(), request.getPhone())) {
+
+            if (userRepository.existsByPhoneAndIdNot(request.getPhone(), user.getId())) {
+                throw new UserAlreadyExistException("Phone already exists");
+            }
+
+            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "Super admin phone updated", user.getName(), user.getPhone(), request.getPhone());
+            user.setPhone(request.getPhone());
+        }
+
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+
+            user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "Super admin password updated", user.getName(), null, PASSWORD_CHANGED);
+        }
+
+    }
+
+    private void updateManagedUser(User user, UpdateUserRequest request, User actor) {
+
         if (!Objects.equals(user.getEmail(), request.getEmail())) {
 
-            activityLogService.logActivity(EntityType.USER, String.valueOf(id), ActivityType.UPDATE, "User email updated", null, user.getEmail(), request.getEmail());
+            if (userRepository.existsByEmailAndIdNot(request.getEmail(), user.getId())) {
+                throw new UserAlreadyExistException("Email already exists");
+            }
 
+            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "User email updated", actor.getName(), user.getEmail(), request.getEmail());
             user.setEmail(request.getEmail());
         }
 
         if (!Objects.equals(user.getPhone(), request.getPhone())) {
 
-            activityLogService.logActivity(EntityType.USER, String.valueOf(id), ActivityType.UPDATE, "User phone updated", null, user.getPhone(), request.getPhone());
+            if (userRepository.existsByPhoneAndIdNot(request.getPhone(), user.getId())) {
+                throw new UserAlreadyExistException("Phone already exists");
+            }
 
+            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "User phone updated", actor.getName(), user.getPhone(), request.getPhone());
             user.setPhone(request.getPhone());
         }
 
+        if (!Objects.equals(user.getName(), request.getName())) {
+            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "User name updated", actor.getName(), user.getName(), request.getName());
+            user.setName(request.getName());
+        }
 
-        User savedUser = userRepository.save(user);
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "User password updated", actor.getName(), null, PASSWORD_CHANGED);
+        }
 
-        return userMapper.toUserResponse(savedUser);
+        if (request.getIsActive() != null && !Objects.equals(user.getIsActive(), request.getIsActive())) {
+            activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "User active status updated", actor.getName(), String.valueOf(user.getIsActive()), String.valueOf(request.getIsActive()));
+            user.setIsActive(request.getIsActive());
+        }
     }
 
     @Transactional
     public void deleteUser(Long id) {
 
-        User user = userRepository.findById(id).orElseThrow(() -> new UserNotFoundException("User not found with the id: " + id));
+        User actor = securityUtils.getCurrentUser();
+        User target = userRepository.findById(id).orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_WITH_ID + id));
 
-        String oldValue = "name=" + user.getName() + ", email=" + user.getEmail() + ", phone=" + user.getPhone();
+        if (target.getRole() == Role.SUPER_ADMIN) {
+            throw new AuthorizationException("SUPER_ADMIN account cannot be deleted");
+        }
 
-        userRepository.delete(user);
+        if (actor.getRole() != Role.SUPER_ADMIN) {
+            throw new AuthorizationException("Only SUPER_ADMIN can delete users");
+        }
 
-        activityLogService.logActivity(EntityType.USER, String.valueOf(id), ActivityType.DELETE, "User deleted", null, oldValue, null);
+        String oldValue = "name=" + target.getName() + ", email=" + target.getEmail() + ", phone=" + target.getPhone() + ", role=" + target.getRole();
+
+        userRepository.delete(target);
+
+        activityLogService.logActivity(EntityType.USER, String.valueOf(id), ActivityType.DELETE, "User deleted", actor.getName(), oldValue, null);
     }
+
+    @Transactional
+    public UserResponse updateOwnProfile(UpdateOwnProfileRequest request) {
+
+        User actor = securityUtils.getCurrentUser();
+
+        if (actor.getRole() != Role.SUPER_ADMIN) {
+            throw new AuthorizationException("Only SUPER_ADMIN can update their own profile");
+        }
+
+        if (!Objects.equals(actor.getName(), request.getName())) {
+            activityLogService.logActivity(EntityType.USER, String.valueOf(actor.getId()), ActivityType.UPDATE, "Super admin name updated", actor.getName(), actor.getName(), request.getName());
+            actor.setName(request.getName());
+        }
+
+        if (!Objects.equals(actor.getPhone(), request.getPhone())) {
+
+            if (userRepository.existsByPhoneAndIdNot(request.getPhone(), actor.getId())) {
+                throw new UserAlreadyExistException("Phone already exists");
+            }
+            activityLogService.logActivity(EntityType.USER, String.valueOf(actor.getId()), ActivityType.UPDATE, "Super admin phone updated", actor.getName(), actor.getPhone(), request.getPhone());
+            actor.setPhone(request.getPhone());
+        }
+
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            actor.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+            activityLogService.logActivity(EntityType.USER, String.valueOf(actor.getId()), ActivityType.UPDATE, "Super admin password updated", actor.getName(), null, PASSWORD_CHANGED);
+        }
+        User savedUser = userRepository.save(actor);
+        return userMapper.toUserResponse(savedUser);
+    }
+
 }
+

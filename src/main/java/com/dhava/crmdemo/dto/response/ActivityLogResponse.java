@@ -14,7 +14,7 @@ public class ActivityLogResponse {
     private String entityId;
     private ActivityType activityType;
     private String message;
-    private Long performedBy;
+    private String performedBy;
     private LocalDateTime timestamp;
     private String oldValue;
     private String newValue;

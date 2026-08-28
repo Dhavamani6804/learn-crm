@@ -43,4 +43,9 @@ public class GlobalExceptionHandler {
         ApiResponse<Void> response = ApiResponse.badRequest(e.getMessage(), null);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
+    @ExceptionHandler(AuthorizationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAuthorizationException(AuthorizationException e) {
+        ApiResponse<Void> response = ApiResponse.badRequest(e.getMessage(), null);
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
 }

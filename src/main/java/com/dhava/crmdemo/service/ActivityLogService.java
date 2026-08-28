@@ -18,15 +18,7 @@ public class ActivityLogService {
     private final ActivityLogRepository activityLogRepository;
     private final ActivityLogMapper activityLogMapper;
 
-    public void logActivity(
-            EntityType entityType,
-            String entityId,
-            ActivityType activityType,
-            String message,
-            Long performedBy,
-            String oldValue,
-            String newValue
-    ) {
+    public void logActivity(EntityType entityType, String entityId, ActivityType activityType, String message, String performedBy, String oldValue, String newValue) {
 
         ActivityLog activityLog = new ActivityLog();
 
@@ -48,12 +40,8 @@ public class ActivityLogService {
                 .toList();
     }
 
-    public List<ActivityLogResponse> getLogsByEntity(
-            EntityType entityType,
-            String entityId
-    ) {
-        return activityLogRepository
-                .findByEntityTypeAndEntityId(entityType, entityId)
+    public List<ActivityLogResponse> getLogsByEntity(EntityType entityType, String entityId) {
+        return activityLogRepository.findByEntityTypeAndEntityId(entityType, entityId)
                 .stream()
                 .map(activityLogMapper::toActivityLogResponse)
                 .toList();

@@ -46,7 +46,10 @@ public class User {
     @Column(nullable = false)
     private Boolean isActive;
 
+    @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(nullable = false)
     private LocalDateTime updatedAt;
 
     @PrePersist

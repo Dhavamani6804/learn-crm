@@ -24,9 +24,7 @@ public class ActivityLogRepository {
     public List<ActivityLog> findByEntityTypeAndEntityId(EntityType entityType, String entityId) {
 
         Query query = new Query(Criteria.where("entityType").is(entityType).and("entityId").is(entityId));
-
         query.with(Sort.by(Sort.Direction.ASC, "timestamp"));
-
         return mongoTemplate.find(query, ActivityLog.class);
     }
 
