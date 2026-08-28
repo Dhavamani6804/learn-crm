@@ -64,19 +64,15 @@ public class LeadService {
 
         Lead createdLead = leadRepository.save(lead);
 
-        activityLogService.logActivity(EntityType.LEAD, createdLead.getId(), ActivityType.CREATE, "Lead created", null, null, "Lead " + createdLead.getLeadName() + " created");
+        activityLogService.logActivity(EntityType.LEAD, createdLead.getId(), ActivityType.CREATE, "Lead created", null, "Lead " + createdLead.getLeadName() + " created");
 
         return leadMapper.toLeadResponse(createdLead);
     }
 
     public LeadPageResponse getAllLeads(LeadFilterRequest request) {
-        if (request.getMinBudget() != null
-                && request.getMaxBudget() != null
-                && request.getMinBudget().compareTo(request.getMaxBudget()) > 0) {
 
-            throw new IllegalArgumentException(
-                    "Minimum budget cannot be greater than maximum budget"
-            );
+        if (request.getMinBudget() != null && request.getMaxBudget() != null && request.getMinBudget().compareTo(request.getMaxBudget()) > 0) {
+            throw new IllegalArgumentException("Minimum budget cannot be greater than maximum budget");
         }
 
         LeadPageResult result = leadRepository.findAll(request.getPageNo(), request.getPageSize(), request.getSortBy(), request.getSortDirection(), request.getSource(), request.getStatus(), request.getMinBudget(), request.getMaxBudget());
@@ -95,9 +91,7 @@ public class LeadService {
     }
 
     public LeadResponse getLeadById(String id) {
-
         Lead lead = leadRepository.findById(id).orElseThrow(() -> new LeadNotFoundException(LEAD_NOT_FOUND));
-
         return leadMapper.toLeadResponse(lead);
     }
 
@@ -105,55 +99,41 @@ public class LeadService {
 
         Lead lead = leadRepository.findById(id).orElseThrow(() -> new LeadNotFoundException(LEAD_NOT_FOUND));
 
-        if (!request.getEmail().equals(lead.getEmail()) && leadRepository.existsByEmailAndIdNot(request.getEmail(), id)) {
-
+        if (!Objects.equals(request.getEmail(), lead.getEmail()) && leadRepository.existsByEmailAndIdNot(request.getEmail(), id)) {
             throw new LeadAlreadyExistException("Email already exists");
         }
 
-        if (!request.getPhone().equals(lead.getPhone()) && leadRepository.existsByPhoneAndIdNot(request.getPhone(), id)) {
-
+        if (!Objects.equals(request.getPhone(), lead.getPhone()) && leadRepository.existsByPhoneAndIdNot(request.getPhone(), id)) {
             throw new LeadAlreadyExistException("Phone already exists");
         }
 
         if (hasChanged(lead.getLeadName(), request.getLeadName())) {
-
-            activityLogService.logActivity(EntityType.LEAD, id, ActivityType.UPDATE, "Lead name updated", lead.getAssignedUserId(), lead.getLeadName(), request.getLeadName());
-
+            activityLogService.logActivity(EntityType.LEAD, id, ActivityType.UPDATE, "Lead name updated", lead.getLeadName(), request.getLeadName());
             lead.setLeadName(request.getLeadName());
         }
 
         if (hasChanged(lead.getEmail(), request.getEmail())) {
-
-            activityLogService.logActivity(EntityType.LEAD, id, ActivityType.UPDATE, "Lead email updated", lead.getAssignedUserId(), lead.getEmail(), request.getEmail());
-
+            activityLogService.logActivity(EntityType.LEAD, id, ActivityType.UPDATE, "Lead email updated", lead.getEmail(), request.getEmail());
             lead.setEmail(request.getEmail());
         }
 
         if (hasChanged(lead.getPhone(), request.getPhone())) {
-
-            activityLogService.logActivity(EntityType.LEAD, id, ActivityType.UPDATE, "Lead phone updated", lead.getAssignedUserId(), lead.getPhone(), request.getPhone());
-
+            activityLogService.logActivity(EntityType.LEAD, id, ActivityType.UPDATE, "Lead phone updated", lead.getPhone(), request.getPhone());
             lead.setPhone(request.getPhone());
         }
 
         if (hasChanged(lead.getSource(), request.getSource())) {
-
-            activityLogService.logActivity(EntityType.LEAD, id, ActivityType.UPDATE, "Lead source updated", lead.getAssignedUserId(), lead.getSource(), request.getSource());
-
+            activityLogService.logActivity(EntityType.LEAD, id, ActivityType.UPDATE, "Lead source updated", lead.getSource(), request.getSource());
             lead.setSource(request.getSource());
         }
 
         if (hasChanged(lead.getDescription(), request.getDescription())) {
-
-            activityLogService.logActivity(EntityType.LEAD, id, ActivityType.UPDATE, "Lead description updated", lead.getAssignedUserId(), lead.getDescription(), request.getDescription());
-
+            activityLogService.logActivity(EntityType.LEAD, id, ActivityType.UPDATE, "Lead description updated", lead.getDescription(), request.getDescription());
             lead.setDescription(request.getDescription());
         }
 
         if (hasChanged(lead.getExpectedBudget(), request.getExpectedBudget())) {
-
-            activityLogService.logActivity(EntityType.LEAD, id, ActivityType.UPDATE, "Lead expected budget updated", lead.getAssignedUserId(), String.valueOf(lead.getExpectedBudget()), String.valueOf(request.getExpectedBudget()));
-
+            activityLogService.logActivity(EntityType.LEAD, id, ActivityType.UPDATE, "Lead expected budget updated", String.valueOf(lead.getExpectedBudget()), String.valueOf(request.getExpectedBudget()));
             lead.setExpectedBudget(request.getExpectedBudget());
         }
 
@@ -166,18 +146,21 @@ public class LeadService {
 
         Lead lead = leadRepository.findById(id).orElseThrow(() -> new LeadNotFoundException(LEAD_NOT_FOUND));
 
-        activityLogService.logActivity(EntityType.LEAD, id, ActivityType.DELETE, "Lead deleted", lead.getAssignedUserId(), lead.getLeadName(), null);
+        String oldValue = "name=" + lead.getLeadName() + ", email=" + lead.getEmail() + ", phone=" + lead.getPhone() + ", source=" + lead.getSource() + ", status=" + lead.getStatus() + ", expectedBudget=" + lead.getExpectedBudget();
 
         leadRepository.deleteById(id);
+
+        activityLogService.logActivity(EntityType.LEAD, id, ActivityType.DELETE, "Lead deleted", oldValue, null);
     }
 
     public LeadResponse assignUserToLead(String leadId, Long userId) {
 
-        UserResponse user = userService.getUserById(userId);
-
         Lead lead = leadRepository.findById(leadId).orElseThrow(() -> new LeadNotFoundException(LEAD_NOT_FOUND));
 
-        Long oldAssignedUser = lead.getAssignedUserId();
+        UserResponse user = userService.getUserById(userId);
+
+        Long oldAssignedUserId = lead.getAssignedUserId();
+        String oldAssignedUserName = lead.getAssignedUserName();
 
         lead.setAssignedUserId(userId);
         lead.setAssignedUserName(user.getName());
@@ -185,7 +168,11 @@ public class LeadService {
 
         Lead updatedLead = leadRepository.save(lead);
 
-        activityLogService.logActivity(EntityType.LEAD, leadId, ActivityType.ASSIGN, "Lead assigned to user", userId, oldAssignedUser == null ? null : oldAssignedUser.toString(), user.getName());
+        String oldValue = oldAssignedUserId == null ? null : oldAssignedUserId + " (" + oldAssignedUserName + ")";
+
+        String newValue = userId + " (" + user.getName() + ")";
+
+        activityLogService.logActivity(EntityType.LEAD, leadId, ActivityType.ASSIGN, "Lead assigned to user", oldValue, newValue);
 
         return leadMapper.toLeadResponse(updatedLead);
     }
@@ -208,7 +195,7 @@ public class LeadService {
 
         Lead updatedLead = leadRepository.save(lead);
 
-        activityLogService.logActivity(EntityType.LEAD, id, ActivityType.STATUS_CHANGE, "Lead status updated", lead.getAssignedUserId(), oldStatus.name(), request.getStatus().name());
+        activityLogService.logActivity(EntityType.LEAD, id, ActivityType.STATUS_CHANGE, "Lead status updated", oldStatus.name(), request.getStatus().name());
 
         return leadMapper.toLeadResponse(updatedLead);
     }
@@ -229,43 +216,38 @@ public class LeadService {
             throw new ProjectAlreadyExistException("Project already exists for this lead");
         }
 
-        Long performedBy = lead.getAssignedUserId();
-
-
-        Project project = new Project();
-
-        project.setProjectName(request.getProjectName());
-
-        project.setClientName(request.getClientName() != null && !request.getClientName().isBlank() ? request.getClientName() : lead.getLeadName());
-
-        project.setLeadId(leadId);
-
-        project.setDescription(request.getDescription() != null ? request.getDescription() : lead.getDescription());
-
-        project.setFinalBudget(request.getFinalBudget() != null ? request.getFinalBudget() : lead.getExpectedBudget());
-
-        project.setStatus(ProjectStatus.PLANNED);
-
-        project.setAssignedUserId(performedBy);
-
-        project.setStartDate(request.getStartDate());
-        project.setEndDate(request.getEndDate());
+        Project project = getProject(leadId, request, lead);
 
         Project createdProject = projectRepository.save(project);
 
         LeadStatus oldStatus = lead.getStatus();
-
         lead.setStatus(LeadStatus.CONVERTED);
 
         leadRepository.save(lead);
 
-        activityLogService.logActivity(EntityType.LEAD, leadId, ActivityType.CONVERT, "Lead converted into project", performedBy, oldStatus.name(), LeadStatus.CONVERTED.name());
-
-        activityLogService.logActivity(EntityType.PROJECT, createdProject.getId(), ActivityType.CREATE, "Project created from lead", performedBy, null, "Project " + createdProject.getProjectName() + " created");
+        activityLogService.logActivity(EntityType.LEAD, leadId, ActivityType.CONVERT, "Lead converted into project", oldStatus.name(), LeadStatus.CONVERTED.name());
+        activityLogService.logActivity(EntityType.PROJECT, createdProject.getId(), ActivityType.CREATE, "Project created from lead", null, "Project " + createdProject.getProjectName() + " created");
 
         return projectMapper.toProjectResponse(createdProject);
     }
 
+    private static Project getProject(String leadId, LeadToProjectRequest request, Lead lead) {
+        Long assignedUserId = lead.getAssignedUserId();
+
+        Project project = new Project();
+
+        project.setProjectName(request.getProjectName());
+        project.setClientName(request.getClientName() != null && !request.getClientName().isBlank() ? request.getClientName() : lead.getLeadName());
+        project.setLeadId(leadId);
+        project.setDescription(request.getDescription() != null ? request.getDescription() : lead.getDescription());
+        project.setFinalBudget(request.getFinalBudget() != null ? request.getFinalBudget() : lead.getExpectedBudget());
+        project.setStatus(ProjectStatus.PLANNED);
+        project.setAssignedUserId(assignedUserId);
+
+        project.setStartDate(request.getStartDate());
+        project.setEndDate(request.getEndDate());
+        return project;
+    }
 
     private boolean hasChanged(Object oldValue, Object newValue) {
         return !Objects.equals(oldValue, newValue);

@@ -13,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,11 +48,10 @@ public class LeadController {
      * @param request the lead details required to create a new lead
      * @return a response containing the newly created lead
      */
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER')")
     @PostMapping
     public ResponseEntity<ApiResponse<LeadResponse>> createLead(@Valid @RequestBody LeadRequest request) {
-
         LeadResponse response = leadService.createLead(request);
-
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(response, "Lead created successfully"));
     }
 
@@ -60,6 +60,7 @@ public class LeadController {
      *
      * @return a response containing a list of all leads
      */
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER')")
     @GetMapping
     public ResponseEntity<ApiResponse<LeadPageResponse>> getAllLeads(@Valid @ModelAttribute LeadFilterRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(leadService.getAllLeads(request), "Leads fetched successfully"));
@@ -71,9 +72,9 @@ public class LeadController {
      * @param id the unique identifier of the lead
      * @return a response containing the requested lead
      */
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER')")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<LeadResponse>> getLeadById(@PathVariable String id) {
-
         return ResponseEntity.ok(ApiResponse.ok(leadService.getLeadById(id), "Lead fetched successfully"));
     }
 
@@ -87,9 +88,9 @@ public class LeadController {
      * @param request the updated lead details
      * @return a response containing the updated lead
      */
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER')")
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<LeadResponse>> updateLead(@PathVariable String id, @Valid @RequestBody LeadRequest request) {
-
         return ResponseEntity.ok(ApiResponse.ok(leadService.updateLead(id, request), "Lead updated successfully"));
     }
 
@@ -99,11 +100,10 @@ public class LeadController {
      * @param id the unique identifier of the lead to delete
      * @return a response indicating that the lead was deleted successfully
      */
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteLead(@PathVariable String id) {
-
         leadService.deleteLeadById(id);
-
         return ResponseEntity.ok(ApiResponse.noContent("Lead deleted successfully"));
     }
 
@@ -117,9 +117,9 @@ public class LeadController {
      * @param userId the unique identifier of the user to whom the lead is assigned
      * @return a response containing the updated lead
      */
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER')")
     @PatchMapping("/{id}/assign/{userId}")
     public ResponseEntity<ApiResponse<LeadResponse>> assignUserToLead(@PathVariable String id, @PathVariable Long userId) {
-
         return ResponseEntity.ok(ApiResponse.ok(leadService.assignUserToLead(id, userId), "Lead assigned to user successfully"));
     }
 
@@ -132,9 +132,9 @@ public class LeadController {
      * @param request the request containing the new lead status
      * @return a response containing the updated lead
      */
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<LeadResponse>> updateLeadStatus(@PathVariable String id, @Valid @RequestBody LeadStatusRequest request) {
-
         return ResponseEntity.ok(ApiResponse.ok(leadService.updateLeadStatus(id, request), "Lead status updated successfully"));
     }
 
@@ -148,9 +148,10 @@ public class LeadController {
      * @param request the project details used during conversion
      * @return a response containing the newly created project
      */
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER')")
     @PostMapping("/{id}/convert-to-project")
     public ResponseEntity<ApiResponse<ProjectResponse>> leadToProject(@PathVariable String id, @Valid @RequestBody LeadToProjectRequest request) {
-
         return ResponseEntity.ok(ApiResponse.ok(leadService.leadToProject(id, request), "Lead converted to project successfully"));
     }
+
 }

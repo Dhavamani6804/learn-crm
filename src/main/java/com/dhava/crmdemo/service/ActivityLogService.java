@@ -56,21 +56,16 @@ public class ActivityLogService {
     }
 
     private void validiateLogAccess(User actor, EntityType entityType, String entityId) {
+
         if (actor.getRole() == Role.SUPER_ADMIN) {
             return;
         }
 
         if (actor.getRole() == Role.ADMIN) {
-            if (entityType == EntityType.USER) {
-                if (!entityId.equals(String.valueOf(actor.getId()))) {
-                    throw new AuthorizationException("Admin can only access their own activity logs");
-                }
+            if (entityType == EntityType.USER || entityType == EntityType.LEAD || entityType == EntityType.PROJECT) {
                 return;
             }
-            if (entityType == EntityType.LEAD || entityType == EntityType.PROJECT) {
-                return;
-            }
-            throw new AuthorizationException("Admin does not have access to this activity logs");
+            throw new AuthorizationException("Admin does not have access to these activity logs");
         }
 
         if (actor.getRole() == Role.USER) {

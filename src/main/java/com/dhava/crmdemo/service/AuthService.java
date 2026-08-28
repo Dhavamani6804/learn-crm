@@ -30,10 +30,7 @@ public class AuthService {
             throw new BadCredentialsException("Invalid credentials");
         }
 
-        if (!passwordEncoder.matches(
-                request.getPassword(),
-                user.getPasswordHash()
-        )) {
+        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new BadCredentialsException("Invalid credentials");
         }
 
