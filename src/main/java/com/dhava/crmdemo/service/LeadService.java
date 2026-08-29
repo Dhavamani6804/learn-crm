@@ -10,10 +10,12 @@ import com.dhava.crmdemo.dto.response.ProjectResponse;
 import com.dhava.crmdemo.dto.response.UserResponse;
 import com.dhava.crmdemo.entity.Lead;
 import com.dhava.crmdemo.entity.Project;
-import com.dhava.crmdemo.enums.ActivityType;
-import com.dhava.crmdemo.enums.EntityType;
-import com.dhava.crmdemo.enums.LeadStatus;
 import com.dhava.crmdemo.enums.ProjectStatus;
+import com.dhava.crmdemo.enums.LeadStatus;
+import com.dhava.crmdemo.enums.EntityType;
+import com.dhava.crmdemo.enums.ActivityType;
+import com.dhava.crmdemo.enums.LeadSortBy;
+import com.dhava.crmdemo.enums.SortDirection;
 import com.dhava.crmdemo.exception.LeadAlreadyExistException;
 import com.dhava.crmdemo.exception.LeadNotFoundException;
 import com.dhava.crmdemo.exception.NoUserAssignedException;
@@ -75,6 +77,10 @@ public class LeadService {
             throw new IllegalArgumentException("Minimum budget cannot be greater than maximum budget");
         }
 
+        if (request.getSortBy() == LeadSortBy.ASSIGNED_USER_NAME) {
+            return getLeadsSortedByAssignedUserName(request);
+        }
+
         LeadPageResult result = leadRepository.findAll(request.getPageNo(), request.getPageSize(), request.getSortBy(), request.getSortDirection(), request.getSource(), request.getStatus(), request.getMinBudget(), request.getMaxBudget());
 
         List<LeadResponse> leads = result.getLeads().stream().map(leadMapper::toLeadResponse).toList();
@@ -88,6 +94,55 @@ public class LeadService {
         boolean lastPage = (long) (pageNo + 1) * pageSize >= totalElements;
 
         return LeadPageResponse.builder().content(leads).pageNo(pageNo).pageSize(pageSize).totalElements(totalElements).firstPage(firstPage).lastPage(lastPage).build();
+    }
+
+    private LeadPageResponse getLeadsSortedByAssignedUserName(LeadFilterRequest request) {
+
+        List<Lead> allLeads = leadRepository.findAllForAssignedUserSorting(request.getSource(), request.getStatus(), request.getMinBudget(), request.getMaxBudget());
+
+        allLeads.sort((lead1, lead2) -> {
+
+            String name1 = getAssignedUserName(lead1.getAssignedUserId());
+            String name2 = getAssignedUserName(lead2.getAssignedUserId());
+
+            if (name1 == null && name2 == null) {
+                return 0;
+            }
+
+            if (name1 == null) {
+                return 1;
+            }
+
+            if (name2 == null) {
+                return -1;
+            }
+
+            int comparison = name1.compareToIgnoreCase(name2);
+
+            return request.getSortDirection() == SortDirection.ASC ? comparison : -comparison;
+        });
+
+        long totalElements = allLeads.size();
+
+        int pageNo = request.getPageNo();
+        int pageSize = request.getPageSize();
+
+        int fromIndex = pageNo * pageSize;
+        int toIndex = Math.min(fromIndex + pageSize, allLeads.size());
+
+        List<Lead> paginatedLeads = fromIndex >= allLeads.size() ? List.of() : allLeads.subList(fromIndex, toIndex);
+
+        List<LeadResponse> responses = paginatedLeads.stream().map(leadMapper::toLeadResponse).toList();
+
+        return LeadPageResponse.builder().content(responses).pageNo(pageNo).pageSize(pageSize).totalElements(totalElements).firstPage(pageNo == 0).lastPage((long) (pageNo + 1) * pageSize >= totalElements).build();
+    }
+
+    private String getAssignedUserName(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        UserResponse user = userService.getUserById(userId);
+        return user.getName();
     }
 
     public LeadResponse getLeadById(String id) {
@@ -156,24 +211,28 @@ public class LeadService {
     public LeadResponse assignUserToLead(String leadId, Long userId) {
 
         Lead lead = leadRepository.findById(leadId).orElseThrow(() -> new LeadNotFoundException(LEAD_NOT_FOUND));
-
         UserResponse user = userService.getUserById(userId);
-
         Long oldAssignedUserId = lead.getAssignedUserId();
-        String oldAssignedUserName = lead.getAssignedUserName();
+
+        if (Objects.equals(oldAssignedUserId, userId)) {
+            return leadMapper.toLeadResponse(lead);
+        }
+
+        String oldAssignedUserName = null;
+
+        if (oldAssignedUserId != null) {
+            UserResponse oldUser = userService.getUserById(oldAssignedUserId);
+
+            oldAssignedUserName = oldUser.getName();
+        }
 
         lead.setAssignedUserId(userId);
-        lead.setAssignedUserName(user.getName());
         lead.setStatus(LeadStatus.ASSIGNED);
 
         Lead updatedLead = leadRepository.save(lead);
-
         String oldValue = oldAssignedUserId == null ? null : oldAssignedUserId + " (" + oldAssignedUserName + ")";
-
         String newValue = userId + " (" + user.getName() + ")";
-
         activityLogService.logActivity(EntityType.LEAD, leadId, ActivityType.ASSIGN, "Lead assigned to user", oldValue, newValue);
-
         return leadMapper.toLeadResponse(updatedLead);
     }
 
@@ -190,13 +249,9 @@ public class LeadService {
         if (oldStatus == request.getStatus()) {
             return leadMapper.toLeadResponse(lead);
         }
-
         lead.setStatus(request.getStatus());
-
         Lead updatedLead = leadRepository.save(lead);
-
         activityLogService.logActivity(EntityType.LEAD, id, ActivityType.STATUS_CHANGE, "Lead status updated", oldStatus.name(), request.getStatus().name());
-
         return leadMapper.toLeadResponse(updatedLead);
     }
 
@@ -221,14 +276,17 @@ public class LeadService {
         Project createdProject = projectRepository.save(project);
 
         LeadStatus oldStatus = lead.getStatus();
-        lead.setStatus(LeadStatus.CONVERTED);
 
+        lead.setStatus(LeadStatus.CONVERTED);
         leadRepository.save(lead);
 
         activityLogService.logActivity(EntityType.LEAD, leadId, ActivityType.CONVERT, "Lead converted into project", oldStatus.name(), LeadStatus.CONVERTED.name());
+
         activityLogService.logActivity(EntityType.PROJECT, createdProject.getId(), ActivityType.CREATE, "Project created from lead", null, "Project " + createdProject.getProjectName() + " created");
 
-        return projectMapper.toProjectResponse(createdProject);
+        String assignedUserName = userService.getUserById(createdProject.getAssignedUserId()).getName();
+
+        return projectMapper.toProjectResponse(createdProject, assignedUserName);
     }
 
     private static Project getProject(String leadId, LeadToProjectRequest request, Lead lead) {

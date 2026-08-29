@@ -39,10 +39,8 @@ public class ProjectRepository {
             throw new IllegalArgumentException("Page size must be greater than 0");
         }
         if (request.getSortBy() == ProjectSortBy.START_DATE || request.getSortBy() == ProjectSortBy.END_DATE) {
-
             return findAllByNullableDate(request);
         }
-
         return findAllNormal(request);
     }
 

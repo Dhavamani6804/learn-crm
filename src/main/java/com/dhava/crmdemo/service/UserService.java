@@ -1,7 +1,6 @@
 package com.dhava.crmdemo.service;
 
 import com.dhava.crmdemo.dto.request.CreateUserRequest;
-import com.dhava.crmdemo.dto.request.UpdateOwnProfileRequest;
 import com.dhava.crmdemo.dto.request.UpdateUserRequest;
 import com.dhava.crmdemo.dto.response.UserResponse;
 import com.dhava.crmdemo.entity.User;
@@ -19,8 +18,8 @@ import lombok.AllArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.dhava.crmdemo.constants.Constants.PASSWORD_CHANGED;
 import static com.dhava.crmdemo.constants.Constants.USER_NOT_FOUND_WITH_ID;
@@ -103,41 +102,41 @@ public class UserService {
 
         User actor = securityUtils.getCurrentUser();
         User target = userRepository.findById(id).orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_WITH_ID + id));
+        validateUpdatePermission(actor, target);
+
+        if (isSuperAdminSelfUpdate(actor, target)) {
+            updateSuperAdminOwnProfile(target, request);
+        } else {
+            updateManagedUser(target, request);
+        }
+
+        User savedUser = userRepository.save(target);
+        return userMapper.toUserResponse(savedUser);
+    }
+
+    private void validateUpdatePermission(User actor, User target) {
 
         if (actor.getRole() == Role.USER) {
             throw new AuthorizationException("USER does not have permission to update users");
         }
 
-        if (actor.getRole() == Role.ADMIN && actor.getId().equals(target.getId())) {
-            throw new AuthorizationException("ADMIN cannot update his own account");
-        }
-
-        if (actor.getRole() == Role.ADMIN && target.getRole() != Role.USER) {
-            throw new AuthorizationException("ADMIN can update only USER accounts");
-        }
-
-        if (actor.getRole() == Role.SUPER_ADMIN && actor.getId().equals(target.getId())) {
-            updateSuperAdminProfile(target, request);
-            User savedUser = userRepository.save(target);
-            return userMapper.toUserResponse(savedUser);
-        }
-
-        if (actor.getRole() == Role.SUPER_ADMIN) {
-            updateManagedUser(target, request);
-            User savedUser = userRepository.save(target);
-            return userMapper.toUserResponse(savedUser);
-        }
-
         if (actor.getRole() == Role.ADMIN) {
-            updateManagedUser(target, request);
-            User savedUser = userRepository.save(target);
-            return userMapper.toUserResponse(savedUser);
-        }
 
-        throw new AuthorizationException("You do not have permission to update this user");
+            if (actor.getId().equals(target.getId())) {
+                throw new AuthorizationException("ADMIN cannot update his own account");
+            }
+
+            if (target.getRole() != Role.USER) {
+                throw new AuthorizationException("ADMIN can update only USER accounts");
+            }
+        }
     }
 
-    private void updateSuperAdminProfile(User user, UpdateUserRequest request) {
+    private boolean isSuperAdminSelfUpdate(User actor, User target) {
+        return actor.getRole() == Role.SUPER_ADMIN && actor.getId().equals(target.getId());
+    }
+
+    private void updateSuperAdminOwnProfile(User user, UpdateUserRequest request) {
 
         if (!Objects.equals(user.getName(), request.getName())) {
             activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "Super admin name updated", user.getName(), request.getName());
@@ -155,12 +154,11 @@ public class UserService {
         }
 
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
-
             user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
             activityLogService.logActivity(EntityType.USER, String.valueOf(user.getId()), ActivityType.UPDATE, "Super admin password updated", null, PASSWORD_CHANGED);
         }
-
     }
+
 
     private void updateManagedUser(User user, UpdateUserRequest request) {
 
@@ -201,37 +199,6 @@ public class UserService {
     }
 
     @Transactional
-    public UserResponse updateOwnProfile(UpdateOwnProfileRequest request) {
-
-        User actor = securityUtils.getCurrentUser();
-
-        if (actor.getRole() != Role.SUPER_ADMIN) {
-            throw new AuthorizationException("Only SUPER_ADMIN can update their own profile");
-        }
-
-        if (!Objects.equals(actor.getName(), request.getName())) {
-            activityLogService.logActivity(EntityType.USER, String.valueOf(actor.getId()), ActivityType.UPDATE, "Super admin name updated", actor.getName(), request.getName());
-            actor.setName(request.getName());
-        }
-
-        if (!Objects.equals(actor.getPhone(), request.getPhone())) {
-
-            if (userRepository.existsByPhoneAndIdNot(request.getPhone(), actor.getId())) {
-                throw new UserAlreadyExistException("Phone already exists");
-            }
-            activityLogService.logActivity(EntityType.USER, String.valueOf(actor.getId()), ActivityType.UPDATE, "Super admin phone updated", actor.getPhone(), request.getPhone());
-            actor.setPhone(request.getPhone());
-        }
-
-        if (request.getPassword() != null && !request.getPassword().isBlank()) {
-            actor.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-            activityLogService.logActivity(EntityType.USER, String.valueOf(actor.getId()), ActivityType.UPDATE, "Super admin password updated", null, PASSWORD_CHANGED);
-        }
-        User savedUser = userRepository.save(actor);
-        return userMapper.toUserResponse(savedUser);
-    }
-
-    @Transactional
     public void deleteUser(Long id) {
 
         User actor = securityUtils.getCurrentUser();
@@ -252,6 +219,14 @@ public class UserService {
         String oldValue = "name=" + target.getName() + ", email=" + target.getEmail() + ", phone=" + target.getPhone() + ", role=" + target.getRole();
         userRepository.delete(target);
         activityLogService.logActivity(EntityType.USER, String.valueOf(id), ActivityType.DELETE, "User deleted", oldValue, null);
+    }
+
+    public Map<Long, String> getUserNamesByIds(Set<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        return userRepository.findAllById(userIds).stream().collect(Collectors.toMap(User::getId, User::getName));
     }
 }
 

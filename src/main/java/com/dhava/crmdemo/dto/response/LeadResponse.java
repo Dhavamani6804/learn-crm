@@ -15,7 +15,6 @@ public class LeadResponse {
     private String phone;
     private String source;
     private LeadStatus status;
-    private Long assignedUserId;
     private String assignedUserName;
     private String description;
     private BigDecimal expectedBudget;

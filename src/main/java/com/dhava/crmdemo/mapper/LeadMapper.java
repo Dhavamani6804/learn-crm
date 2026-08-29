@@ -1,11 +1,17 @@
 package com.dhava.crmdemo.mapper;
 
 import com.dhava.crmdemo.dto.response.LeadResponse;
+import com.dhava.crmdemo.dto.response.UserResponse;
 import com.dhava.crmdemo.entity.Lead;
+import com.dhava.crmdemo.service.UserService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class LeadMapper {
+
+    private final UserService userService;
 
     public LeadResponse toLeadResponse(Lead lead) {
 
@@ -17,8 +23,13 @@ public class LeadMapper {
         leadResponse.setPhone(lead.getPhone());
         leadResponse.setSource(lead.getSource());
         leadResponse.setStatus(lead.getStatus());
-        leadResponse.setAssignedUserId(lead.getAssignedUserId());
-        leadResponse.setAssignedUserName(lead.getAssignedUserName());
+
+        if (lead.getAssignedUserId() != null) {
+            UserResponse user = userService.getUserById(lead.getAssignedUserId());
+
+            leadResponse.setAssignedUserName(user.getName());
+        }
+
         leadResponse.setDescription(lead.getDescription());
         leadResponse.setExpectedBudget(lead.getExpectedBudget());
         leadResponse.setCreatedAt(lead.getCreatedAt());

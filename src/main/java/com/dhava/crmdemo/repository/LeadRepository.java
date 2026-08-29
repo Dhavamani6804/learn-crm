@@ -142,23 +142,63 @@ public class LeadRepository {
         mongoTemplate.remove(query, Lead.class);
     }
 
+    public List<Lead> findAllForAssignedUserSorting(String source, LeadStatus status, BigDecimal minBudget, BigDecimal maxBudget) {
+
+        Criteria criteria = new Criteria();
+
+        List<Criteria> filters = new ArrayList<>();
+
+        if (source != null && !source.isBlank()) {
+            filters.add(Criteria.where("source").is(source));
+        }
+
+        if (status != null) {
+            filters.add(Criteria.where("status").is(status));
+        }
+
+        if (minBudget != null || maxBudget != null) {
+
+            Criteria budgetCriteria = Criteria.where("expectedBudget");
+
+            if (minBudget != null) {
+                budgetCriteria.gte(minBudget);
+            }
+
+            if (maxBudget != null) {
+                budgetCriteria.lte(maxBudget);
+            }
+
+            filters.add(budgetCriteria);
+        }
+
+        if (!filters.isEmpty()) {
+            criteria.andOperator(filters.toArray(new Criteria[0]));
+        }
+
+        Query query = new Query(criteria);
+
+        return mongoTemplate.find(query, Lead.class);
+    }
+
     private List<Lead> findAllSortedByAssignedUserName(Criteria criteria, long offset, int pageSize, SortDirection sortDirection) {
 
         Sort.Direction direction = sortDirection == SortDirection.ASC ? Sort.Direction.ASC : Sort.Direction.DESC;
 
-        Document assignedUserNameNullExpression = new Document("$cond", Arrays.asList(new Document("$eq", Arrays.asList(new Document("$ifNull", Arrays.asList("$assignedUserName", "")), "")), 1, 0));
+        Document assignedUserNameNullExpression = new Document("$cond", Arrays.asList(new Document("$eq", Arrays.asList(new Document("$ifNull", Arrays.asList("$assignedUser.name", "")), "")), 1, 0));
 
         Aggregation aggregation = Aggregation.newAggregation(
 
                 Aggregation.match(criteria),
 
+                Aggregation.lookup("users", "assignedUserId", "_id", "assignedUser"),
+
+                Aggregation.unwind("assignedUser", true),
+
                 Aggregation.addFields().addFieldWithValue("assignedUserNameNull", assignedUserNameNullExpression).build(),
 
-                Aggregation.sort(Sort.by(Sort.Order.asc("assignedUserNameNull"), new Sort.Order(direction, "assignedUserName"), Sort.Order.desc("createdAt"), Sort.Order.asc("_id"))),
+                Aggregation.sort(Sort.by(Sort.Order.asc("assignedUserNameNull"), new Sort.Order(direction, "assignedUser.name"), Sort.Order.desc("createdAt"), Sort.Order.asc("_id"))),
 
-                Aggregation.skip(offset),
-
-                Aggregation.limit(pageSize));
+                Aggregation.skip(offset), Aggregation.limit(pageSize));
 
         AggregationResults<Lead> results = mongoTemplate.aggregate(aggregation, "leads", Lead.class);
 

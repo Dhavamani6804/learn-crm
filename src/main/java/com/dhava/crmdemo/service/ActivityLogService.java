@@ -9,11 +9,15 @@ import com.dhava.crmdemo.enums.Role;
 import com.dhava.crmdemo.exception.AuthorizationException;
 import com.dhava.crmdemo.mapper.ActivityLogMapper;
 import com.dhava.crmdemo.repository.ActivityLogRepository;
+import com.dhava.crmdemo.repository.UserRepository;
 import com.dhava.crmdemo.security.SecurityUtils;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @AllArgsConstructor
 @Service
@@ -22,6 +26,7 @@ public class ActivityLogService {
     private final ActivityLogRepository activityLogRepository;
     private final ActivityLogMapper activityLogMapper;
     private final SecurityUtils securityUtils;
+    private final UserRepository userRepository;
 
     public void logActivity(EntityType entityType, String entityId, ActivityType activityType, String message, String oldValue, String newValue) {
 
@@ -33,7 +38,7 @@ public class ActivityLogService {
         activityLog.setEntityId(entityId);
         activityLog.setActivityType(activityType);
         activityLog.setMessage(message);
-        activityLog.setPerformedBy(actor.getName());
+        activityLog.setPerformedBy(actor.getId());
         activityLog.setOldValue(oldValue);
         activityLog.setNewValue(newValue);
 
@@ -41,18 +46,40 @@ public class ActivityLogService {
     }
 
     public List<ActivityLogResponse> getAllLogs() {
+
         User actor = securityUtils.getCurrentUser();
+
         if (actor.getRole() != Role.SUPER_ADMIN) {
             throw new AuthorizationException("Only SUPER_ADMIN can access all activity logs");
         }
-        return activityLogRepository.findAll().stream().map(activityLogMapper::toActivityLogResponse).toList();
+
+        List<ActivityLog> logs = activityLogRepository.findAll();
+        return mapLogs(logs);
     }
 
     public List<ActivityLogResponse> getLogsByEntity(EntityType entityType, String entityId) {
 
         User actor = securityUtils.getCurrentUser();
         validateLogAccess(actor, entityType, entityId);
-        return activityLogRepository.findByEntityTypeAndEntityId(entityType, entityId).stream().map(activityLogMapper::toActivityLogResponse).toList();
+        List<ActivityLog> logs = activityLogRepository.findByEntityTypeAndEntityId(entityType, entityId);
+        return mapLogs(logs);
+    }
+
+    private List<ActivityLogResponse> mapLogs(List<ActivityLog> logs) {
+
+        if (logs.isEmpty()) {
+            return List.of();
+        }
+
+        Set<Long> userIds = logs.stream()
+                .map(ActivityLog::getPerformedBy)
+                .collect(Collectors.toSet());
+
+        Map<Long, String> userNames = userRepository.findAllById(userIds)
+                .stream()
+                .collect(Collectors.toMap(User::getId, User::getName));
+
+        return logs.stream().map(log -> activityLogMapper.toActivityLogResponse(log, userNames.get(log.getPerformedBy()))).toList();
     }
 
     private void validateLogAccess(User actor, EntityType entityType, String entityId) {
@@ -61,25 +88,48 @@ public class ActivityLogService {
             return;
         }
 
-        if (actor.getRole() == Role.ADMIN) {
-            if (entityType == EntityType.USER || entityType == EntityType.LEAD || entityType == EntityType.PROJECT) {
+        if (entityType == EntityType.LEAD || entityType == EntityType.PROJECT) {
+
+            if (actor.getRole() == Role.ADMIN || actor.getRole() == Role.USER) {
                 return;
             }
-            throw new AuthorizationException("Admin does not have access to these activity logs");
+
+            throw new AuthorizationException("You don't have access to these activity logs");
         }
 
-        if (actor.getRole() == Role.USER) {
-            if (entityType == EntityType.USER) {
-                if (!entityId.equals(String.valueOf(actor.getId()))) {
-                    throw new AuthorizationException("User can only access their own activity logs");
+        if (entityType == EntityType.USER) {
+
+            long targetUserId;
+
+            try {
+                targetUserId = Long.parseLong(entityId);
+            } catch (NumberFormatException e) {
+                throw new AuthorizationException("Invalid user id");
+            }
+
+            User targetUser = userRepository.findById(targetUserId).orElseThrow(() -> new AuthorizationException("User not found"));
+
+            if (actor.getRole() == Role.ADMIN) {
+
+                if (actor.getId().equals(targetUser.getId())) {
+                    return;
                 }
-                return;
+
+                if (targetUser.getRole() == Role.USER) {
+                    return;
+                }
+                throw new AuthorizationException("ADMIN cannot access this user's activity logs");
             }
-            if (entityType == EntityType.LEAD || entityType == EntityType.PROJECT) {
-                return;
+
+            if (actor.getRole() == Role.USER) {
+
+                if (actor.getId().equals(targetUser.getId())) {
+                    return;
+                }
+                throw new AuthorizationException("USER can only access their own activity logs");
             }
-            throw new AuthorizationException("User does not have access to this activity logs");
+            throw new AuthorizationException("You don't have access to these activity logs");
         }
-        throw new AuthorizationException("You don't have access to this activity logs");
+        throw new AuthorizationException("You don't have access to these activity logs");
     }
 }

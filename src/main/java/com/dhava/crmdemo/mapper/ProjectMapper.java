@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class ProjectMapper {
 
-    public ProjectResponse toProjectResponse(Project project) {
+    public ProjectResponse toProjectResponse(Project project, String assignedUserName) {
 
         return ProjectResponse
                 .builder()
@@ -18,7 +18,7 @@ public class ProjectMapper {
                 .description(project.getDescription())
                 .finalBudget(project.getFinalBudget())
                 .status(project.getStatus())
-                .assignedUserId(project.getAssignedUserId())
+                .assignedUserName(assignedUserName)
                 .startDate(project.getStartDate())
                 .endDate(project.getEndDate())
                 .createdAt(project.getCreatedAt())

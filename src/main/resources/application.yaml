@@ -3,7 +3,7 @@ spring:
     name: crmdemo
 
   datasource:
-    url: jdbc:mysql://localhost:3306/crm
+    url: ${SQL_URL}
     username: root
     password: root
 
@@ -16,15 +16,14 @@ spring:
         format_sql: true
 
   mongodb:
-    uri: mongodb://localhost:27017/crm
-
+    uri: ${MONGODB_URI}
 security:
   super-admin:
-    name: SuperAdmin
-    email: superadmin@gmail.com
-    phone: +919876543210
-    password: SuperAdmin@123
+    name: ${SUPER_ADMIN_NAME}
+    email: ${SUPER_ADMIN_EMAIL}
+    phone: ${SUPER_ADMIN_PHONE}
+    password: ${SUPER_ADMIN_PASSWORD}
 
   jwt:
-    secret: ${JWT_SECRET:this-is-my-secret-key-for-my-crm-application-0987654321}
+    secret: ${JWT_SECRET}
     expiration-ms: 3600000

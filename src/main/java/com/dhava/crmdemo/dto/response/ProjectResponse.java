@@ -19,7 +19,7 @@ public class ProjectResponse {
     private String description;
     private BigDecimal finalBudget;
     private ProjectStatus status;
-    private Long assignedUserId;
+    private String assignedUserName;
     private LocalDate startDate;
     private LocalDate endDate;
     private LocalDateTime createdAt;

@@ -19,7 +19,10 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.dhava.crmdemo.constants.Constants.PROJECT_NOT_FOUND;
 
@@ -34,13 +37,23 @@ public class ProjectService {
 
     public ProjectResponse createProject(ProjectRequest request) {
 
+        if (request.getAssignedUserId() != null) {
+            userService.getUserById(request.getAssignedUserId());
+        }
+
         Project project = getProject(request);
 
         Project createdProject = projectRepository.save(project);
 
         activityLogService.logActivity(EntityType.PROJECT, createdProject.getId(), ActivityType.CREATE, "Project created", null, "Project " + createdProject.getProjectName() + " created");
 
-        return projectMapper.toProjectResponse(createdProject);
+        String assignedUserName = null;
+
+        if (createdProject.getAssignedUserId() != null) {
+            assignedUserName = userService.getUserById(createdProject.getAssignedUserId()).getName();
+        }
+
+        return projectMapper.toProjectResponse(createdProject, assignedUserName);
     }
 
     private static Project getProject(ProjectRequest request) {
@@ -51,7 +64,13 @@ public class ProjectService {
 
         ProjectPageResult result = projectRepository.findAll(request);
 
-        List<ProjectResponse> projects = result.getProjects().stream().map(projectMapper::toProjectResponse).toList();
+        List<Project> projectList = result.getProjects();
+
+        Set<Long> assignedUserIds = projectList.stream().map(Project::getAssignedUserId).filter(Objects::nonNull).collect(Collectors.toSet());
+
+        Map<Long, String> userNames = userService.getUserNamesByIds(assignedUserIds);
+
+        List<ProjectResponse> projects = projectList.stream().map(project -> projectMapper.toProjectResponse(project, project.getAssignedUserId() == null ? null : userNames.get(project.getAssignedUserId()))).toList();
 
         return ProjectPageResponse.builder().content(projects).pageSize(request.getSize()).nextCursor(result.getNextCursor()).hasNext(result.isHasNext()).build();
     }
@@ -63,8 +82,13 @@ public class ProjectService {
     public ProjectResponse getProjectById(String id) {
 
         Project project = returnProjectIfPresent(id);
+        String assignedUserName = null;
 
-        return projectMapper.toProjectResponse(project);
+        if (project.getAssignedUserId() != null) {
+            assignedUserName = userService.getUserById(project.getAssignedUserId()).getName();
+        }
+
+        return projectMapper.toProjectResponse(project, assignedUserName);
     }
 
     public ProjectResponse updateProject(String id, ProjectRequest request) {
@@ -115,7 +139,13 @@ public class ProjectService {
 
         Project updatedProject = projectRepository.save(project);
 
-        return projectMapper.toProjectResponse(updatedProject);
+        String assignedUserName = null;
+
+        if (updatedProject.getAssignedUserId() != null) {
+            assignedUserName = userService.getUserById(updatedProject.getAssignedUserId()).getName();
+        }
+
+        return projectMapper.toProjectResponse(updatedProject, assignedUserName);
     }
 
     public void deleteProject(String id) {
@@ -131,28 +161,40 @@ public class ProjectService {
 
     public ProjectResponse assignUserToProject(String projectId, Long userId) {
 
-        UserResponse user = userService.getUserById(userId);
-
         Project project = returnProjectIfPresent(projectId);
 
-        Long oldAssignedUser = project.getAssignedUserId();
-        UserResponse assignedUser =  userService.getUserById(oldAssignedUser);
-        String oldAssignedUserName = assignedUser.getName();
+        UserResponse newUser = userService.getUserById(userId);
 
-        if (Objects.equals(oldAssignedUser, userId)) {
-            return projectMapper.toProjectResponse(project);
+        Long oldAssignedUserId = project.getAssignedUserId();
+
+        if (Objects.equals(oldAssignedUserId, userId)) {
+            return toProjectResponse(project);
+        }
+
+        String oldAssignedUserName = null;
+
+        if (oldAssignedUserId != null) {
+            oldAssignedUserName = userService.getUserById(oldAssignedUserId).getName();
         }
 
         project.setAssignedUserId(userId);
 
         Project updatedProject = projectRepository.save(project);
 
-        String oldValue = oldAssignedUser == null ? null : oldAssignedUserName;
+        activityLogService.logActivity(EntityType.PROJECT, projectId, ActivityType.ASSIGN, "Project assigned to user", oldAssignedUserName, newUser.getName());
 
-        String newValue = user.getName();
+        return toProjectResponse(updatedProject);
+    }
 
-        activityLogService.logActivity(EntityType.PROJECT, projectId, ActivityType.ASSIGN, "Project assigned to user", oldValue, newValue);
-        return projectMapper.toProjectResponse(updatedProject);
+    private ProjectResponse toProjectResponse(Project project) {
+
+        String assignedUserName = null;
+
+        if (project.getAssignedUserId() != null) {
+            assignedUserName = userService.getUserById(project.getAssignedUserId()).getName();
+        }
+
+        return projectMapper.toProjectResponse(project, assignedUserName);
     }
 
     public ProjectResponse updateProjectStatus(String id, ProjectStatusRequest request) {
@@ -166,7 +208,7 @@ public class ProjectService {
         ProjectStatus oldStatus = project.getStatus();
 
         if (oldStatus == request.getStatus()) {
-            return projectMapper.toProjectResponse(project);
+            return toProjectResponse(project);
         }
 
         project.setStatus(request.getStatus());
@@ -175,7 +217,7 @@ public class ProjectService {
 
         activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.STATUS_CHANGE, "Project status updated", oldStatus.name(), request.getStatus().name());
 
-        return projectMapper.toProjectResponse(updatedProject);
+        return toProjectResponse(updatedProject);
     }
 
     private boolean hasChanged(Object oldValue, Object newValue) {

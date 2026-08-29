@@ -33,7 +33,7 @@ public class ActivityLog {
 
     private String message;
 
-    private String performedBy;
+    private Long performedBy;
 
     @CreatedDate
     private LocalDateTime timestamp;

@@ -2,7 +2,6 @@ package com.dhava.crmdemo.controller;
 
 import com.dhava.crmdemo.api.ApiResponse;
 import com.dhava.crmdemo.dto.request.CreateUserRequest;
-import com.dhava.crmdemo.dto.request.UpdateOwnProfileRequest;
 import com.dhava.crmdemo.dto.request.UpdateUserRequest;
 import com.dhava.crmdemo.dto.response.UserResponse;
 import com.dhava.crmdemo.service.UserService;
@@ -39,12 +38,6 @@ public class UserController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(userService.getUserById(id), "User fetched successfully"));
-    }
-
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
-    @PutMapping("/me")
-    public ResponseEntity<ApiResponse<UserResponse>> updateOwnProfile(@Valid @RequestBody UpdateOwnProfileRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok(userService.updateOwnProfile(request), "Profile updated successfully"));
     }
 
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
