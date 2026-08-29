@@ -1,7 +1,6 @@
 package com.dhava.crmdemo.security;
 
 import com.dhava.crmdemo.entity.User;
-import com.dhava.crmdemo.enums.Role;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -41,16 +40,6 @@ public class JwtService {
         return extractAllClaims(token).getSubject();
     }
 
-    public String extractEmail(String token) {
-        return extractAllClaims(token).get("email", String.class);
-    }
-
-    public Role extractRole(String token) {
-
-        String role = extractAllClaims(token).get("role", String.class);
-        return Role.valueOf(role);
-    }
-
     public boolean isTokenValid(String token) {
 
         try {
@@ -61,14 +50,5 @@ public class JwtService {
         }
     }
 
-    public boolean isTokenExpired(String token) {
-
-        try {
-            Date expiration = extractAllClaims(token).getExpiration();
-            return expiration.before(new Date());
-        } catch (Exception e) {
-            return true;
-        }
-    }
 
 }

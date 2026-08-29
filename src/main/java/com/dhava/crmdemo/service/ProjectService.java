@@ -38,7 +38,7 @@ public class ProjectService {
 
         Project createdProject = projectRepository.save(project);
 
-        activityLogService.logActivity(EntityType.PROJECT, createdProject.getId(), ActivityType.CREATE, "Project created", createdProject.getAssignedUserId(), null, "Project " + createdProject.getProjectName() + " created");
+        activityLogService.logActivity(EntityType.PROJECT, createdProject.getId(), ActivityType.CREATE, "Project created", null, "Project " + createdProject.getProjectName() + " created");
 
         return projectMapper.toProjectResponse(createdProject);
     }
@@ -73,42 +73,42 @@ public class ProjectService {
 
         if (hasChanged(project.getProjectName(), request.getProjectName())) {
 
-            activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.UPDATE, "Project name updated", project.getAssignedUserId(), project.getProjectName(), request.getProjectName());
+            activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.UPDATE, "Project name updated", project.getProjectName(), request.getProjectName());
 
             project.setProjectName(request.getProjectName());
         }
 
         if (hasChanged(project.getClientName(), request.getClientName())) {
 
-            activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.UPDATE, "Project client name updated", project.getAssignedUserId(), project.getClientName(), request.getClientName());
+            activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.UPDATE, "Project client name updated", project.getClientName(), request.getClientName());
 
             project.setClientName(request.getClientName());
         }
 
         if (hasChanged(project.getDescription(), request.getDescription())) {
 
-            activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.UPDATE, "Project description updated", project.getAssignedUserId(), project.getDescription(), request.getDescription());
+            activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.UPDATE, "Project description updated", project.getDescription(), request.getDescription());
 
             project.setDescription(request.getDescription());
         }
 
         if (hasChanged(project.getFinalBudget(), request.getFinalBudget())) {
 
-            activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.UPDATE, "Project final budget updated", project.getAssignedUserId(), String.valueOf(project.getFinalBudget()), String.valueOf(request.getFinalBudget()));
+            activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.UPDATE, "Project final budget updated", String.valueOf(project.getFinalBudget()), String.valueOf(request.getFinalBudget()));
 
             project.setFinalBudget(request.getFinalBudget());
         }
 
         if (hasChanged(project.getStartDate(), request.getStartDate())) {
 
-            activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.UPDATE, "Project start date updated", project.getAssignedUserId(), String.valueOf(project.getStartDate()), String.valueOf(request.getStartDate()));
+            activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.UPDATE, "Project start date updated", String.valueOf(project.getStartDate()), String.valueOf(request.getStartDate()));
 
             project.setStartDate(request.getStartDate());
         }
 
         if (hasChanged(project.getEndDate(), request.getEndDate())) {
 
-            activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.UPDATE, "Project end date updated", project.getAssignedUserId(), String.valueOf(project.getEndDate()), String.valueOf(request.getEndDate()));
+            activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.UPDATE, "Project end date updated", String.valueOf(project.getEndDate()), String.valueOf(request.getEndDate()));
 
             project.setEndDate(request.getEndDate());
         }
@@ -122,7 +122,9 @@ public class ProjectService {
 
         Project project = returnProjectIfPresent(id);
 
-        activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.DELETE, "Project deleted", project.getAssignedUserId(), project.getProjectName(), null);
+        String oldValue = "name=" + project.getProjectName() + ", client=" + project.getClientName() + ", leadId=" + project.getLeadId() + ", status=" + project.getStatus() + ", finalBudget=" + project.getFinalBudget() + ", assignedUserId=" + project.getAssignedUserId();
+
+        activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.DELETE, "Project deleted", oldValue, null);
 
         projectRepository.deleteById(id);
     }
@@ -134,6 +136,8 @@ public class ProjectService {
         Project project = returnProjectIfPresent(projectId);
 
         Long oldAssignedUser = project.getAssignedUserId();
+        UserResponse assignedUser =  userService.getUserById(oldAssignedUser);
+        String oldAssignedUserName = assignedUser.getName();
 
         if (Objects.equals(oldAssignedUser, userId)) {
             return projectMapper.toProjectResponse(project);
@@ -143,8 +147,11 @@ public class ProjectService {
 
         Project updatedProject = projectRepository.save(project);
 
-        activityLogService.logActivity(EntityType.PROJECT, projectId, ActivityType.ASSIGN, "Project assigned to user", userId, oldAssignedUser == null ? null : oldAssignedUser.toString(), user.getName());
+        String oldValue = oldAssignedUser == null ? null : oldAssignedUserName;
 
+        String newValue = user.getName();
+
+        activityLogService.logActivity(EntityType.PROJECT, projectId, ActivityType.ASSIGN, "Project assigned to user", oldValue, newValue);
         return projectMapper.toProjectResponse(updatedProject);
     }
 
@@ -166,7 +173,7 @@ public class ProjectService {
 
         Project updatedProject = projectRepository.save(project);
 
-        activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.STATUS_CHANGE, "Project status updated", project.getAssignedUserId(), oldStatus.name(), request.getStatus().name());
+        activityLogService.logActivity(EntityType.PROJECT, id, ActivityType.STATUS_CHANGE, "Project status updated", oldStatus.name(), request.getStatus().name());
 
         return projectMapper.toProjectResponse(updatedProject);
     }

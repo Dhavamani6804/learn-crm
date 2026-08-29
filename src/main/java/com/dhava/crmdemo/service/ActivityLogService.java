@@ -51,11 +51,11 @@ public class ActivityLogService {
     public List<ActivityLogResponse> getLogsByEntity(EntityType entityType, String entityId) {
 
         User actor = securityUtils.getCurrentUser();
-        validiateLogAccess(actor, entityType, entityId);
+        validateLogAccess(actor, entityType, entityId);
         return activityLogRepository.findByEntityTypeAndEntityId(entityType, entityId).stream().map(activityLogMapper::toActivityLogResponse).toList();
     }
 
-    private void validiateLogAccess(User actor, EntityType entityType, String entityId) {
+    private void validateLogAccess(User actor, EntityType entityType, String entityId) {
 
         if (actor.getRole() == Role.SUPER_ADMIN) {
             return;
