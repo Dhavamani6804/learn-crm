@@ -69,7 +69,7 @@ public class ProjectController {
         return ResponseEntity.ok(ApiResponse.ok(projectService.assignUserToProject(id, userId), "Project assigned to user successfully"));
     }
 
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_ADMIN')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<ProjectResponse>> updateProjectStatus(@PathVariable String id, @Valid @RequestBody ProjectStatusRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(projectService.updateProjectStatus(id, request), "Project status updated successfully"));
